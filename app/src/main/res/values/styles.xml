@@ -1,0 +1,15 @@
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#007350</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#F5F7F6</item>
+        <item name="android:navigationBarColor">#F5F7F6</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="MufDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/muf_dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/muf_dialog_exit</item>
+    </style>
+</resources>

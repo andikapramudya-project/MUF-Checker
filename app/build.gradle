@@ -1,0 +1,16 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'id.local.mufchecker'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'id.local.mufchecker'
+        minSdk 26
+        targetSdk 35
+        versionCode 19
+        versionName '0.8.5'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

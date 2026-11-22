@@ -1,0 +1,24 @@
+{
+  "name": "cek-status-angsuran-muf",
+  "version": "2.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "scripts": {
+    "dev": "pnpm --filter @muf/dashboard dev",
+    "build": "pnpm --filter @muf/shared build && pnpm --filter @muf/inquiry-core build && pnpm --filter @muf/dashboard build && pnpm --filter @muf/firefox-addon build",
+    "build:dashboard": "pnpm --filter @muf/dashboard build",
+    "build:addon": "pnpm --filter @muf/shared build && pnpm --filter @muf/inquiry-core build && pnpm --filter @muf/firefox-addon build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1",
+    "vitest": "^4.0.14"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@muf/firefox-addon",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build --configLoader runner --mode background && vite build --configLoader runner --mode tokopedia && vite build --configLoader runner --mode bridge && vite build --configLoader runner --mode diagnostics && vite build --configLoader runner --mode popup && node scripts/copy-static.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --max-warnings=0",
+    "test": "node -e \"console.log('Add-on menggunakan suite antrean, parser fixture, origin, dan pengaman @muf/inquiry-core.')\""
+  },
+  "dependencies": {
+    "@muf/inquiry-core": "workspace:*",
+    "@muf/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^120.0.4",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4"
+  }
+}

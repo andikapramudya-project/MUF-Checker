@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.netlify/
+.pnpm-store/
+.env
+.env.local
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db

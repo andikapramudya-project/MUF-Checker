@@ -1,0 +1,3 @@
+<resources>
+    <string name="service_description">Membantu inquiry 1–50 nomor kontrak MUF secara bergantian. Hanya memproses layar Tokopedia saat pemeriksaan aktif, mengisi form, menekan inquiry yang dikenali, dan membaca jatuh tempo. Hasil disimpan di ponsel sebelum berpindah nomor. Tidak memilih metode atau mengonfirmasi pembayaran. Tidak membaca OTP, PIN, atau sandi. Jeda atau hentikan lewat panel di layar.</string>
+</resources>

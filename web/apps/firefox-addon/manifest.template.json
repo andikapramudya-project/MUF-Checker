@@ -1,0 +1,35 @@
+{
+  "manifest_version": 2,
+  "name": "Cek Status Angsuran MUF",
+  "version": "2.0.0",
+  "description": "Membaca hasil inquiry angsuran MUF yang tampil pada halaman Tokopedia, tanpa melakukan pembayaran.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "https://www.tokopedia.com/angsuran/mandiri-utama-finance*"
+  ],
+  "background": {
+    "scripts": ["background/event-page.js"],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.tokopedia.com/angsuran/mandiri-utama-finance*"],
+      "js": ["content/tokopedia-content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Cek Status Angsuran MUF"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "cek-status-angsuran-muf@local",
+      "strict_min_version": "120.0"
+    },
+    "gecko_android": {
+      "strict_min_version": "120.0"
+    }
+  }
+}

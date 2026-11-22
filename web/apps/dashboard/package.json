@@ -1,0 +1,29 @@
+{
+  "name": "@muf/dashboard",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --configLoader runner",
+    "build": "tsc -b && vite build --configLoader runner",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint src --max-warnings=0",
+    "test": "node -e \"console.log('Dashboard menggunakan suite @muf/inquiry-core dan fixture lokal.')\""
+  },
+  "dependencies": {
+    "@muf/inquiry-core": "workspace:*",
+    "@muf/shared": "workspace:*",
+    "@vitejs/plugin-react": "^5.1.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "vite": "^7.2.4",
+    "vite-plugin-pwa": "^1.2.0",
+    "workbox-window": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3"
+  }
+}
