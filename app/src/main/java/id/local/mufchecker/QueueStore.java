@@ -72,6 +72,14 @@ final class QueueStore extends SQLiteOpenHelper {
         }
         return list;
     }
+    /** Raw id/snapshot pairs, newest first; callers decide what needs parsing. */
+    List<String[]> sessionSnapshots() {
+        List<String[]> list = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().query("sessions", new String[]{"id", "snapshot"}, null, null, null, null, "created DESC, rowid DESC")) {
+            while (c.moveToNext()) list.add(new String[]{c.getString(0), c.getString(1)});
+        }
+        return list;
+    }
     String rowDiagnostic(String id, String contract) {
         try (Cursor c = getReadableDatabase().query("reports", new String[]{"report"}, "session_id=? AND contract=?", new String[]{id, contract}, null, null, null)) {
             return c.moveToFirst() ? c.getString(0) : "";

@@ -1,5 +1,15 @@
 # Catatan rilis
 
+## 0.8.6 — 23 November 2026
+
+- **Gerak lebih tenang.** Satu set token gerak (90/160/220/300/420 ms) dengan kurva ease-out untuk elemen masuk dan ease-in untuk elemen keluar. OvershootInterpolator dan skala 1.035 pada navigasi dihapus; indikator kapsul bergeser 300 ms tanpa pantulan, dan warna label/ikon tab berpindah lembut 220 ms.
+- **Perpindahan halaman fade-through:** halaman lama memudar 90 ms, halaman baru masuk 220 ms dengan geser 8 dp. Dialog masuk dengan fade + skala 0,96→1 (220 ms) dan keluar 140 ms.
+- **Angka dan progres:** kartu Sudah/Belum/Error berhitung naik 420 ms saat nilainya berubah pada sesi yang sama di tab Hasil; angka memakai digit tabular agar tidak bergoyang. Bilah progres Aktivitas memakai track membulat dan bergerak halus per kontrak (resolusi 100 langkah per kontrak).
+- **Kartu Aktivitas:** tombol Jeda/STOP/Lanjutkan/Lihat hasil dan progres muncul atau hilang dengan fade, tinggi kartu menyesuaikan dengan mulus. Kolom nomor kontrak tidak dianimasikan agar mengetik tetap responsif.
+- **Panel mengambang glass:** gaya glass dipertahankan. Panel kini muncul dengan fade 220 ms (tanpa perpindahan posisi, sehingga guard area Bayar tidak berubah) dan tombol Mulai berubah dari redup ke aktif secara lembut.
+- **Performa:** riwayat sesi di-cache per isi snapshot sehingga checkpoint hanya mengurai ulang sesi yang berubah, bukan seluruh riwayat. Hitungan Sudah/Belum dan kunci tabel dihitung di pekerja AppRepository, bukan di thread UI. Pembacaan ulang data saat tidak ada pemeriksaan/persiapan turun dari 0,9 detik menjadi 3 detik; saat aktif tetap 0,9 detik.
+- Semua gerak tetap mengikuti skala animasi Android, dihentikan pada posisi akhir saat Activity dijeda, dan tidak menjadwalkan aksi antrean. Logika inquiry, guard, schema, serializer dan kunci signing tidak berubah. VersionCode 20/versionName 0.8.6.
+
 ## 0.8.5 — 4 November 2026
 
 - Pesan pembatasan cabang, nomor kontrak/pelanggan tidak ditemukan/tidak valid, serta tagihan tidak tersedia disimpan sebagai ERROR kontrak dan dilewati setelah checkpoint. Dua ERROR kontrak berurutan tidak menghentikan antrean; alasan pembatasan tetap eksplisit.

@@ -31,6 +31,25 @@ final class FloatingPanel extends LinearLayout {
         stop.setContentDescription(preparing?"Batalkan persiapan":"STOP, hentikan pemeriksaan segera");
         LayoutParams stopLp=new LayoutParams(-2,-2);stopLp.leftMargin=dp(6);addView(stop,stopLp);
     }
+    private float readyAlpha = -1f;
+    /** Mulai eases between its waiting and ready look; enabling itself stays immediate. */
+    void setReady(boolean ready) {
+        float target = ready ? 1f : .45f;
+        if (primary.isEnabled() == ready && readyAlpha == target) return;
+        readyAlpha = target; primary.setEnabled(ready); primary.animate().cancel();
+        if (MufTheme.motionOn() && isAttachedToWindow() && getVisibility() == VISIBLE) {
+            primary.animate().alpha(target).setDuration(MufTheme.MOTION_QUICK).setInterpolator(MufTheme.easeOut()).start();
+        } else primary.setAlpha(target);
+    }
+    /** Fade only (no movement), so the window bounds used by the Bayar-area guard never change. */
+    @Override public void setVisibility(int visibility) {
+        boolean appearing = visibility == VISIBLE && getVisibility() != VISIBLE;
+        super.setVisibility(visibility);
+        animate().cancel();
+        if (appearing && MufTheme.motionOn() && isAttachedToWindow()) {
+            setAlpha(0f); animate().alpha(1f).setDuration(MufTheme.MOTION_ENTER).setInterpolator(MufTheme.easeOut()).start();
+        } else setAlpha(1f);
+    }
     private int dp(int value){return MufTheme.dp(getContext(),value);}
     private Button action(String label,boolean main,boolean danger) {
         Button button=new Button(getContext());button.setText(label);button.setAllCaps(false);button.setTextSize(13);
