@@ -255,7 +255,7 @@ public final class TokopediaService extends AccessibilityService {
         }
     }
     private void recordPreparation(String report) {
-        preparationSnapshot = "MUF Checker 0.8.6\nTahap: PREPARE_FORM\n" + report;
+        preparationSnapshot = "MUF Checker 0.8.5\nTahap: PREPARE_FORM\n" + report;
         trace.record("PREPARE_FORM", preparationSnapshot); persistTrace();
     }
     private void requestPreparedStart() {
@@ -746,7 +746,7 @@ public final class TokopediaService extends AccessibilityService {
         return false;
     }
     private String diagnosticHeader() {
-        return "MUF Checker 0.8.6\nPerangkat: " + Build.MANUFACTURER + " " + Build.MODEL
+        return "MUF Checker 0.8.5\nPerangkat: " + Build.MANUFACTURER + " " + Build.MODEL
             + "\nAntrean: " + (batch.currentIndex() + 1) + "/" + batch.rows().size()
             + "\nAndroid: " + Build.VERSION.RELEASE + " / API " + Build.VERSION.SDK_INT
             + "\nTokopedia: " + tokopediaVersion + "\nTahap: " + session.stage()
@@ -857,7 +857,6 @@ public final class TokopediaService extends AccessibilityService {
             getSharedPreferences("checker", MODE_PRIVATE).edit().putString("progress", message).putString("progress_short", compact).apply();
         }
         if (panelText != null && !compact.contentEquals(panelText.getText())) panelText.setText(compact);
-        if (panel instanceof FloatingPanel && batch != null && !preparing) ((FloatingPanel) panel).setProgress(batch.completedCount(), batch.rows().size());
     }
     private boolean handleInquiryResponse(InquiryResponse.Signal signal,boolean quietExpired){
         if(!active || session==null || session.stage()!=InquirySession.Stage.WAIT_RESULT || !session.submitted()
