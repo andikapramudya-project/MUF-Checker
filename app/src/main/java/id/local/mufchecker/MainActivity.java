@@ -81,7 +81,7 @@ public final class MainActivity extends Activity {
     private String revision = "!", filter = "Semua", searchText = "";
     private int selectedPage;
     private final Runnable refresh = new Runnable() {
-        @Override public void run() { update(); handler.postDelayed(this, running() || queue != null && queue.hasUnfinished() ? 900 : 3000); }
+        @Override public void run() { update(); handler.postDelayed(this, 900); }
     };
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -114,9 +114,6 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); if (repository != null) repository.close(); super.onDestroy(); }
-    private String versionName() {
-        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return "0.8.6"; }
-    }
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
     private TextView text(String value, int size, int color, boolean bold) {
         TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color);
@@ -158,9 +155,8 @@ public final class MainActivity extends Activity {
         host.addView(pages[index], new LinearLayout.LayoutParams(-1, -1));
         return body;
     }
-    private TextView metric(LinearLayout parent, String label, int color, String filterValue) {
-        LinearLayout c = column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(MufTheme.touch(this,BACK,12,false));
-        c.setMinimumHeight(dp(48)); c.setContentDescription("Tampilkan hasil " + label); c.setOnClickListener(v -> applyFilter(filterValue));
+    private TextView metric(LinearLayout parent, String label, int color) {
+        LinearLayout c = column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(bg(BACK,12,false));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,-2,1); lp.setMargins(dp(3),0,dp(3),0); parent.addView(c,lp);
         TextView value = text("0",24,color,true); c.addView(value); c.addView(text(label,12,MUTED,false)); return value;
     }
@@ -242,7 +238,7 @@ public final class MainActivity extends Activity {
         selector.addView(sessionMenu,new LinearLayout.LayoutParams(dp(48),dp(48))); sessionMenu.setOnClickListener(v -> sessionActions());
         resultOverview=column(); totals.addView(resultOverview);
         gap(resultOverview,8); LinearLayout metrics=new LinearLayout(this); resultOverview.addView(metrics);
-        paidCount=metric(metrics,"Sudah",GREEN,"Sudah"); unpaidCount=metric(metrics,"Belum",AMBER,"Belum"); errorCount=metric(metrics,"Error",RED,"Error");
+        paidCount=metric(metrics,"Sudah",GREEN); unpaidCount=metric(metrics,"Belum",NAVY); errorCount=metric(metrics,"Error",RED);
         gap(resultOverview,12); summary = text("Belum ada sesi", 12, MUTED, false); resultOverview.addView(summary);
         resultOverview.setVisibility(searchText.isEmpty()?View.VISIBLE:View.GONE);
         gap(results, 16); search = new EditText(this); search.setSingleLine(true); search.setTextSize(14); search.setHint("Cari kontrak atau nama"); search.setContentDescription("Cari hasil berdasarkan kontrak atau nama"); search.setTextColor(NAVY); search.setHintTextColor(MUTED);
@@ -253,13 +249,18 @@ public final class MainActivity extends Activity {
             resultOverview.setVisibility(searchText.isEmpty()?View.VISIBLE:View.GONE); updateRetryVisibility();
             handler.removeCallbacks(searchRefresh); handler.postDelayed(searchRefresh, 180);
         }));
-        LinearLayout filters = new LinearLayout(this); gap(results, 10); results.addView(filters); filterRow = filters;
+        LinearLayout filters = new LinearLayout(this); gap(results, 10); results.addView(filters);
         for (String value : new String[]{"Semua", "Belum", "Sudah", "Error"}) {
-            TextView chip = text(value, 12, MUTED, true); chip.setGravity(Gravity.CENTER); chip.setMinHeight(dp(48)); chip.setTag(value);
+            TextView chip = text(value, 12, MUTED, true); chip.setGravity(Gravity.CENTER); chip.setMinHeight(dp(48));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1); lp.rightMargin = dp(4); filters.addView(chip, lp);
-            chip.setOnClickListener(v -> applyFilter(value));
+            chip.setOnClickListener(v -> { filter = value; for (int i = 0; i < filters.getChildCount(); i++) {
+                TextView other = (TextView) filters.getChildAt(i); boolean chosen = other.getText().toString().equals(filter);
+                other.setSelected(chosen); other.setContentDescription(other.getText() + (chosen ? ", dipilih" : ""));
+                other.setBackground(MufTheme.touch(this,chosen ? MufTheme.SOFT_GREEN : Color.WHITE,10,!chosen)); other.setTextColor(chosen ? GREEN : MUTED);
+            } renderTable(); });
+            chip.setSelected(value.equals(filter)); chip.setContentDescription(value + (chip.isSelected() ? ", dipilih" : ""));
+            chip.setBackground(MufTheme.touch(this,chip.isSelected()?MufTheme.SOFT_GREEN:Color.WHITE,10,!chip.isSelected()));
         }
-        styleFilters();
         gap(results, 16);
         empty = text("Belum ada hasil. Siapkan pemeriksaan di tab Periksa.", 14, MUTED, false); results.addView(empty);
         retry = button(results, "Coba ulang ERROR", false, v -> retryErrors());
@@ -303,7 +304,7 @@ public final class MainActivity extends Activity {
         for(Button b:new Button[]{viewDiag,copyDiag,exportDiag}){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.topMargin=dp(6);if(b!=exportDiag)lp.rightMargin=dp(8);b.setLayoutParams(lp);}
         gap(settings,14); LinearLayout dataCard=card(settings); dataCard.addView(text("Data aplikasi",17,NAVY,true));
         Button clear=button(dataCard,"Hapus seluruh sesi",false,v -> clearData()); clear.setTextColor(RED);
-        gap(settings, 24); TextView footer = text("MUF Checker · " + versionName() + "\n© Andika Pramudya 2026", 11, MUTED, false);
+        gap(settings, 24); TextView footer = text("MUF Checker · 0.8.5\n© Andika Pramudya 2026", 11, MUTED, false);
         footer.setGravity(Gravity.CENTER); settings.addView(footer);
 
         navigation=new android.widget.FrameLayout(this);navigation.setBackground(bg(Color.WHITE,28,true));
@@ -318,35 +319,6 @@ public final class MainActivity extends Activity {
             tabs[i].setGravity(Gravity.CENTER); tabs[i].setMinHeight(dp(64)); tabs[i].setOnClickListener(v -> selectPage(index)); tabs[i].setBackground(MufTheme.touch(this,Color.TRANSPARENT,24,false));nav.addView(tabs[i],new LinearLayout.LayoutParams(0,-1,1)); }
         LinearLayout.LayoutParams navLp=new LinearLayout.LayoutParams(-1,-2);navLp.setMargins(dp(20),dp(8),dp(20),dp(12));shell.addView(navigation,navLp);
         setContentView(shell);shell.requestApplyInsets();navigation.post(() -> syncNavigation(false));
-    }
-    private LinearLayout filterRow;
-    private void applyFilter(String value) { filter = value; styleFilters(); renderTable(); }
-    /** Chip look and "Belum 8" counts; matching always uses the tag, never the visible text. */
-    private void styleFilters() {
-        if (filterRow == null) return;
-        int paid = 0, unpaid = 0, errors = 0;
-        if (viewQueue != null) for (BulkQueue.Row r : viewQueue.rows()) {
-            String s = status(r); if (s.equals("SUDAH BAYAR")) paid++; else if (s.equals("BELUM BAYAR")) unpaid++; else if (s.equals("ERROR")) errors++;
-        }
-        for (int i = 0; i < filterRow.getChildCount(); i++) {
-            TextView chip = (TextView) filterRow.getChildAt(i); String value = (String) chip.getTag(); boolean chosen = value.equals(filter);
-            int n = value.equals("Sudah") ? paid : value.equals("Belum") ? unpaid : value.equals("Error") ? errors : -1;
-            chip.setText(n > 0 ? value + " " + n : value); chip.setSelected(chosen);
-            chip.setContentDescription(value + (n >= 0 ? ", " + n + " kontrak" : "") + (chosen ? ", dipilih" : ""));
-            chip.setBackground(MufTheme.touch(this, chosen ? MufTheme.SOFT_GREEN : Color.WHITE, 10, !chosen)); chip.setTextColor(chosen ? GREEN : MUTED);
-        }
-    }
-    /** Count-up only while the Hasil tab is visible; otherwise the number just changes. */
-    private void setCount(TextView view, int to) {
-        Object running = view.getTag();
-        if (running instanceof android.animation.ValueAnimator) ((android.animation.ValueAnimator) running).cancel();
-        int from; try { from = Integer.parseInt(view.getText().toString()); } catch (NumberFormatException e) { from = to; }
-        if (from == to || selectedPage != 1 || !MufTheme.motionOn()) { view.setText(Integer.toString(to)); return; }
-        android.animation.ValueAnimator a = android.animation.ValueAnimator.ofInt(from, to).setDuration(MufTheme.MOTION_SLOW);
-        a.setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f));
-        a.addUpdateListener(x -> view.setText(Integer.toString((Integer) x.getAnimatedValue())));
-        a.addListener(new android.animation.AnimatorListenerAdapter() { @Override public void onAnimationEnd(android.animation.Animator an) { view.setText(Integer.toString(to)); } });
-        view.setTag(a); a.start();
     }
     private TextWatcher watcher(Runnable changed) { return new TextWatcher() {
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -366,8 +338,7 @@ public final class MainActivity extends Activity {
         if (changed && android.animation.ValueAnimator.areAnimatorsEnabled()) {
             pages[selectedPage].animate().cancel(); pages[selectedPage].setAlpha(.8f);
             pages[selectedPage].setTranslationY(dp(4));
-            pages[selectedPage].animate().alpha(1f).translationY(0).setDuration(MufTheme.MOTION_ENTER)
-                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+            pages[selectedPage].animate().alpha(1f).translationY(0).setDuration(180).start();
         }
     }
     /** Purely visual selection movement; never schedules queue work. */
@@ -375,8 +346,8 @@ public final class MainActivity extends Activity {
         if(navigation==null || navigationTabs==null)return;
         boolean moving=animate && resumed && android.animation.ValueAnimator.areAnimatorsEnabled();
         for(int i=0;i<tabs.length;i++)if(tabs[i]!=null){
-            tabs[i].animate().cancel();float scale=1f;
-            if(moving)tabs[i].animate().scaleX(scale).scaleY(scale).setDuration(MufTheme.MOTION_ENTER).start();
+            tabs[i].animate().cancel();float scale=i==selectedPage?1.035f:1f;
+            if(moving)tabs[i].animate().scaleX(scale).scaleY(scale).setDuration(220).setInterpolator(new android.view.animation.OvershootInterpolator(.5f)).start();
             else {tabs[i].setScaleX(scale);tabs[i].setScaleY(scale);}
         }
         if(navigationTabs.getWidth()==0 || tabs[selectedPage].getWidth()==0)return;
@@ -384,18 +355,16 @@ public final class MainActivity extends Activity {
         int width=tabs[selectedPage].getWidth(),height=navigationTabs.getHeight()-dp(8);
         if(lp.width!=width || lp.height!=height){lp.width=width;lp.height=height;navigationIndicator.setLayoutParams(lp);}
         float target=tabs[selectedPage].getLeft();navigationIndicator.animate().cancel();
-        if(moving)navigationIndicator.animate().translationX(target).setDuration(MufTheme.MOTION_ENTER).setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+        if(moving)navigationIndicator.animate().translationX(target).setDuration(260).setInterpolator(new android.view.animation.OvershootInterpolator(.5f)).start();
         else navigationIndicator.setTranslationX(target);
     }
     private void countInput() {
-        LinkedHashSet<String> valid = new LinkedHashSet<>(); int duplicate = 0, invalid = 0, lineNo = 0; StringBuilder badLines = new StringBuilder();
+        LinkedHashSet<String> valid = new LinkedHashSet<>(); int duplicate = 0, invalid = 0;
         for (String raw : contract.getText().toString().replaceFirst("^\uFEFF", "").split("\\r?\\n")) {
-            lineNo++; String value = raw.trim(); if (value.isEmpty()) continue;
-            if (!InquiryRules.validContract(value)) { invalid++; if (invalid <= 5) badLines.append(invalid > 1 ? ", " : "").append(lineNo); }
-            else if (!valid.add(value)) duplicate++;
+            String value = raw.trim(); if (value.isEmpty()) continue;
+            if (!InquiryRules.validContract(value)) invalid++; else if (!valid.add(value)) duplicate++;
         }
-        inputCount.setText(valid.size() + " kontrak berbeda · Maksimal " + BulkQueue.LIMIT + (duplicate > 0 ? " · " + duplicate + " duplikat" : "")
-            + (invalid > 0 ? " · " + invalid + " tidak valid (baris " + badLines + (invalid > 5 ? ", …" : "") + ")" : ""));
+        inputCount.setText(valid.size() + " kontrak berbeda · Maksimal " + BulkQueue.LIMIT + (duplicate > 0 ? " · " + duplicate + " duplikat" : "") + (invalid > 0 ? " · " + invalid + " tidak valid" : ""));
         inputCount.setTextColor(invalid > 0 || valid.size() > BulkQueue.LIMIT ? RED : MUTED);
     }
     private String periodLabel(YearMonth month) { return month.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("id-ID"))); }
@@ -470,8 +439,7 @@ public final class MainActivity extends Activity {
             int maximum = queue == null ? 1 : queue.rows().size(), value = queue == null ? 0 : queue.completedCount();
             activityProgress.setVisibility(queue==null?View.GONE:View.VISIBLE);
             resultsShortcut.setVisibility(queue!=null && queue.completedCount()>0?View.VISIBLE:View.GONE);
-            String eta = queue == null || !active ? "" : UiPresentation.eta(queue.activeMs(), value, maximum);
-            progressLabel.setText(queue == null ? "" : value + "/" + maximum + " selesai · " + (value * 100 / maximum) + "%" + (eta.isEmpty() ? "" : " · " + eta));
+            progressLabel.setText(queue == null ? "" : value + "/" + maximum + " selesai · " + (value * 100 / maximum) + "%");
             progress.setContentDescription(progressLabel.getText());
             if (progress.getMax() != maximum) progress.setMax(maximum);
             if (progress.getProgress() != value) progress.setProgress(value,selectedPage==0 && android.animation.ValueAnimator.areAnimatorsEnabled());
@@ -509,8 +477,7 @@ public final class MainActivity extends Activity {
         summary.setText(viewQueue == null ? "Belum ada sesi" : viewQueue.completedCount() + "/" + viewQueue.rows().size() + " selesai · " + UiPresentation.duration(viewQueue.activeMs()));
         int paid = 0, unpaid = 0;
         if (viewQueue != null) for (BulkQueue.Row r : viewQueue.rows()) { if (status(r).equals("SUDAH BAYAR")) paid++; if (status(r).equals("BELUM BAYAR")) unpaid++; }
-        setCount(paidCount, paid); setCount(unpaidCount, unpaid); setCount(errorCount, viewQueue==null?0:viewQueue.errorCount());
-        styleFilters();
+        paidCount.setText(Integer.toString(paid)); unpaidCount.setText(Integer.toString(unpaid)); errorCount.setText(Integer.toString(viewQueue==null?0:viewQueue.errorCount()));
         diagnosisChoice.setText("Pilih sesi");
         diagnosisChoice.setContentDescription(viewQueue==null?"Pilih sesi diagnosis":"Pilih sesi diagnosis, terpilih " + when);
         updateRetryVisibility();
@@ -736,11 +703,7 @@ public final class MainActivity extends Activity {
             this.data=data;
             ordinal.setText(Integer.toString(data.ordinal));number.setText(data.source.contract);name.setText(data.name);
             badge.setText(UiPresentation.tableStatusLabel(data.status));
-            boolean paid="SUDAH BAYAR".equals(data.status),unpaid="BELUM BAYAR".equals(data.status),failed="ERROR".equals(data.status);
-            badge.setTextColor(failed?RED:paid?GREEN:unpaid?AMBER:MUTED);
-            badge.setBackground(failed?MufTheme.chip(MainActivity.this,MufTheme.SOFT_RED):paid?MufTheme.chip(MainActivity.this,MufTheme.SOFT_GREEN)
-                :unpaid?MufTheme.chip(MainActivity.this,MufTheme.SOFT_AMBER):null);
-            badge.setPadding(dp(12),dp(10),dp(12),dp(10));
+            badge.setTextColor("ERROR".equals(data.status)?RED:"SUDAH BAYAR".equals(data.status)?GREEN:MUTED);
             setContentDescription("Hasil " + data.ordinal + ", kontrak " + data.source.contract + ", nama " + data.name + ", "
                 + UiPresentation.statusLabel(data.status) + ", ketuk untuk rincian");
         }
@@ -826,9 +789,8 @@ public final class MainActivity extends Activity {
     private void presentRow(BulkQueue.Row row,String sessionId,RowDetails data) {
         ScrollView scroll=new ScrollView(this);LinearLayout content=column();content.setPadding(dp(20),dp(8),dp(20),dp(8));scroll.addView(content);
         String stateLabel=status(row);boolean failed="ERROR".equals(stateLabel),paid="SUDAH BAYAR".equals(stateLabel);
-        boolean unpaid="BELUM BAYAR".equals(stateLabel);
-        TextView statusChip=text(UiPresentation.statusLabel(stateLabel),13,failed?RED:paid?GREEN:unpaid?AMBER:NAVY,true);
-        statusChip.setPadding(dp(12),dp(8),dp(12),dp(8));statusChip.setBackground(bg(failed?MufTheme.SOFT_RED:paid?MufTheme.SOFT_GREEN:unpaid?MufTheme.SOFT_AMBER:MufTheme.SOFT_NEUTRAL,10,false));
+        TextView statusChip=text(UiPresentation.statusLabel(stateLabel),13,failed?RED:paid?GREEN:NAVY,true);
+        statusChip.setPadding(dp(12),dp(8),dp(12),dp(8));statusChip.setBackground(bg(failed?MufTheme.SOFT_RED:paid?MufTheme.SOFT_GREEN:MufTheme.SOFT_NEUTRAL,10,false));
         content.addView(statusChip,new LinearLayout.LayoutParams(-2,-2));gap(content,12);
         LinearLayout identity=column();identity.setPadding(dp(12),dp(12),dp(12),dp(12));identity.setBackground(bg(BACK,12,false));content.addView(identity);
         detailValue(identity,"Kontrak",row.contract);
