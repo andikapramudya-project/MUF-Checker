@@ -10,10 +10,26 @@ import android.graphics.drawable.RippleDrawable;
 final class MufTheme {
     static final int NAVY = Color.rgb(29, 35, 33), GREEN = Color.rgb(0, 115, 80);
     static final int MUTED = Color.rgb(95, 105, 100), BACK = Color.rgb(245, 247, 246);
-    static final int RED = Color.rgb(166, 45, 54), AMBER = NAVY;
+    static final int RED = Color.rgb(166, 45, 54), AMBER = Color.rgb(138, 90, 0);
     static final int SOFT_GREEN = Color.rgb(232, 243, 237), BORDER = Color.rgb(224, 230, 226), OVERLAY = Color.rgb(30, 39, 34);
     static final int SOFT_NEUTRAL = Color.rgb(239, 242, 240), SOFT_RED = Color.rgb(251, 236, 238);
+    static final int SOFT_AMBER = Color.rgb(255, 244, 220);
+    /** Motion tokens in ms: enter eases out, exit eases in; only alpha/translation/progress animate. */
+    static final int MOTION_FAST = 100, MOTION_BASE = 150, MOTION_ENTER = 200, MOTION_SLOW = 300;
     private MufTheme() { }
+    /** Honors the Android "remove animations" setting; callers jump to the end state when false. */
+    static boolean motionOn() { return android.animation.ValueAnimator.areAnimatorsEnabled(); }
+    /** Small fade/rise used for panels and counters; no-op when animations are off. */
+    static void rise(android.view.View v, float fromDp, int ms) {
+        if (!motionOn()) return;
+        v.animate().cancel(); v.setAlpha(0f); v.setTranslationY(-fromDp * v.getResources().getDisplayMetrics().density);
+        v.animate().alpha(1f).translationY(0f).setDuration(ms)
+            .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+    }
+    /** Soft status capsule behind a table cell: inset so it reads as a chip, not a filled cell. */
+    static android.graphics.drawable.Drawable chip(Context c, int color) {
+        return new android.graphics.drawable.InsetDrawable(shape(c, color, 10, false), dp(c, 4), dp(c, 12), dp(c, 4), dp(c, 12));
+    }
     static int dp(Context c, int value) { return Math.round(value * c.getResources().getDisplayMetrics().density); }
     static GradientDrawable shape(Context c, int color, int radius, boolean border) {
         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(c, radius));

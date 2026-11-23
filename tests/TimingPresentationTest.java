@@ -7,6 +7,8 @@ public final class TimingPresentationTest {
     private static int checks;
     private static void ok(boolean value,String message){checks++;if(!value)throw new AssertionError(message);}
     public static void main(String[] args){
+        ok(UiPresentation.eta(60000,1,10).isEmpty() && UiPresentation.eta(60000,10,10).isEmpty() && UiPresentation.eta(0,5,10).isEmpty(),"ETA waits for two finished contracts and ends at completion");
+        ok("sisa ± 1m 0d".equals(UiPresentation.eta(60000,5,10)) && "sisa ± 20d".equals(UiPresentation.eta(20000,2,4)),"ETA extrapolates the average finished duration");
         ok(FlowTiming.nextItem(true,true)==300 && FlowTiming.nextItem(true,false)==0,"Ready form reuse shortens only the next-item startup wait");
         ok(FlowTiming.nextItem(false,true)==700 && FlowTiming.nextItem(false,false)==1200,"Legacy launch and return waits are preserved");
         ok(!FlowTiming.needsFocus(true,true),"Skip redundant focus only when ready-page contract input already has focus");
