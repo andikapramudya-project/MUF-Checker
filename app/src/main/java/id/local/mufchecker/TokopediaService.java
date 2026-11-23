@@ -255,7 +255,7 @@ public final class TokopediaService extends AccessibilityService {
         }
     }
     private void recordPreparation(String report) {
-        preparationSnapshot = "MUF Checker 0.8.5\nTahap: PREPARE_FORM\n" + report;
+        preparationSnapshot = "MUF Checker 0.8.6\nTahap: PREPARE_FORM\n" + report;
         trace.record("PREPARE_FORM", preparationSnapshot); persistTrace();
     }
     private void requestPreparedStart() {
@@ -746,7 +746,7 @@ public final class TokopediaService extends AccessibilityService {
         return false;
     }
     private String diagnosticHeader() {
-        return "MUF Checker 0.8.5\nPerangkat: " + Build.MANUFACTURER + " " + Build.MODEL
+        return "MUF Checker 0.8.6\nPerangkat: " + Build.MANUFACTURER + " " + Build.MODEL
             + "\nAntrean: " + (batch.currentIndex() + 1) + "/" + batch.rows().size()
             + "\nAndroid: " + Build.VERSION.RELEASE + " / API " + Build.VERSION.SDK_INT
             + "\nTokopedia: " + tokopediaVersion + "\nTahap: " + session.stage()
@@ -928,7 +928,8 @@ public final class TokopediaService extends AccessibilityService {
         android.widget.Toast.makeText(this, toast, android.widget.Toast.LENGTH_SHORT).show();
     }
     private void setPanelEnabled(boolean enabled) {
-        if(pauseButton!=null){pauseButton.setEnabled(enabled);pauseButton.setAlpha(enabled?1f:.45f);}
+        if(panel instanceof FloatingPanel)((FloatingPanel)panel).setReady(enabled);
+        else if(pauseButton!=null){pauseButton.setEnabled(enabled);pauseButton.setAlpha(enabled?1f:.45f);}
     }
     private void showPanel() {
         if (panel != null) {

@@ -63,6 +63,7 @@ public final class MainActivity extends Activity {
     private View navigationIndicator;
     private TextView sessionSelect, sessionMenu, activityNote, paidCount, unpaidCount, errorCount;
     private java.util.List<BulkQueue> history = new java.util.ArrayList<>();
+    private java.util.Map<BulkQueue, AppRepository.Summary> summaries = new java.util.IdentityHashMap<>();
     private EditText contract, search;
     private TextView periodView, state, connection, inputCount, summary, empty;
     private Button start, stop, pause, resume, retry, periodButton;
@@ -74,6 +75,12 @@ public final class MainActivity extends Activity {
     private ResultAdapter resultAdapter;
     private int renderGeneration;
     private TextView progressLabel;
+    private LinearLayout liveCard;
+    private boolean cardMotion;
+    private String countSession = "";
+    private android.animation.ObjectAnimator progressAnimator;
+    private final java.util.Map<TextView, android.animation.ValueAnimator> countAnimators = new java.util.HashMap<>();
+    private static final int PROGRESS_STEPS = 100;
     private final Runnable searchRefresh = () -> renderTable();
     private final View[] pages = new View[3];
     private final TextView[] tabs = new TextView[3];
@@ -81,7 +88,7 @@ public final class MainActivity extends Activity {
     private String revision = "!", filter = "Semua", searchText = "";
     private int selectedPage;
     private final Runnable refresh = new Runnable() {
-        @Override public void run() { update(); handler.postDelayed(this, 900); }
+        @Override public void run() { update(); handler.postDelayed(this, pollingActive() ? 900 : 3000); }
     };
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -108,7 +115,8 @@ public final class MainActivity extends Activity {
     @Override protected void onPause() {
         resumed=false;
         handler.removeCallbacks(refresh); handler.removeCallbacks(searchRefresh);
-        for(View page:pages)if(page!=null){page.animate().cancel();page.setAlpha(1f);page.setTranslationY(0);}
+        for(int i=0;i<pages.length;i++)if(pages[i]!=null){pages[i].animate().cancel();pages[i].setAlpha(1f);pages[i].setTranslationY(0);pages[i].setVisibility(i==selectedPage?View.VISIBLE:View.GONE);}
+        settleMotion();
         syncNavigation(false);
         if (contract != null) prefs.edit().putString("last_contracts", contract.getText().toString()).putString("selected_period", period.toString()).apply();
         super.onPause();
@@ -136,7 +144,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.topMargin = dp(10); parent.addView(b, lp);
         b.setOnClickListener(action); return b;
     }
-    private LinearLayout page(LinearLayout host, int index) {
+    private LinearLayout page(android.widget.FrameLayout host, int index) {
         LinearLayout body = column();
         if (index == 1) {
             resultList = new ListView(this); pages[index] = resultList;
@@ -152,13 +160,13 @@ public final class MainActivity extends Activity {
             scroll.addView(body); pages[index] = scroll;
             body.setPadding(dp(20), dp(8), dp(20), dp(24));
         }
-        host.addView(pages[index], new LinearLayout.LayoutParams(-1, -1));
+        host.addView(pages[index], new android.widget.FrameLayout.LayoutParams(-1, -1));
         return body;
     }
     private TextView metric(LinearLayout parent, String label, int color) {
         LinearLayout c = column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(bg(BACK,12,false));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,-2,1); lp.setMargins(dp(3),0,dp(3),0); parent.addView(c,lp);
-        TextView value = text("0",24,color,true); c.addView(value); c.addView(text(label,12,MUTED,false)); return value;
+        TextView value = text("0",24,color,true); value.setFontFeatureSettings("tnum"); value.setTag(0); c.addView(value); c.addView(text(label,12,MUTED,false)); return value;
     }
     private void updateModeLabel() {
         String label = startMode == BulkQueue.StartMode.READY_PAGE ? "Halaman Tokopedia siap" : "Tautan MUF";
@@ -185,7 +193,7 @@ public final class MainActivity extends Activity {
         shell.addView(brand);
         android.widget.FrameLayout frames = new android.widget.FrameLayout(this); shell.addView(frames, new LinearLayout.LayoutParams(-1, 0, 1));
         // One visible page at a time; input and table retain their positions when navigating.
-        LinearLayout pageHost = column(); frames.addView(pageHost);
+        android.widget.FrameLayout pageHost = new android.widget.FrameLayout(this); frames.addView(pageHost);
         LinearLayout checking = page(pageHost, 0);
         LinearLayout form = card(checking);
         LinearLayout periodRow = new LinearLayout(this); periodRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -210,15 +218,16 @@ public final class MainActivity extends Activity {
         gap(form,4);
         start = button(form, startMode == BulkQueue.StartMode.READY_PAGE ? "Siapkan pemeriksaan" : "Mulai melalui tautan", true, v -> requestStart());
         gap(form,8); form.addView(text("Buka form MUF, tekan Mulai di panel.",12,MUTED,false));
-        gap(checking, 14); LinearLayout live = card(checking);
+        gap(checking, 14); LinearLayout live = card(checking); liveCard = live;
         live.addView(text("Aktivitas", 15, NAVY, true)); gap(live, 8); state = text("Belum ada pemeriksaan.", 13, MUTED, false); live.addView(state);
         state.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         activityNote=text("",12,MUTED,false); activityNote.setMaxLines(3); activityNote.setEllipsize(android.text.TextUtils.TruncateAt.END); live.addView(activityNote);
         activityNote.setMinHeight(dp(48));
         activityNote.setOnClickListener(v -> { if(queue != null && !queue.reason().isEmpty()) showText("Aktivitas",queue.reason()); });
         activityProgress=column();live.addView(activityProgress);activityProgress.setVisibility(View.GONE);
-        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); gap(activityProgress,12);activityProgress.addView(progress,new LinearLayout.LayoutParams(-1,dp(6)));
-        progressLabel=text("",12,MUTED,false);gap(activityProgress,8);activityProgress.addView(progressLabel);
+        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); progress.setProgressDrawable(MufTheme.progressTrack(this));
+        gap(activityProgress,12);activityProgress.addView(progress,new LinearLayout.LayoutParams(-1,dp(6)));
+        progressLabel=text("",12,MUTED,false);progressLabel.setFontFeatureSettings("tnum");gap(activityProgress,8);activityProgress.addView(progressLabel);
         pause = button(live, "Jeda setelah kontrak aktif", false, v -> { if (service() != null) service().requestPause(); });
         resume = button(live, "Lanjutkan antrean", true, v -> requestResume());
         stop = button(live, "STOP sekarang", false, v -> { if (service() != null) service().stopByUser(); });
@@ -239,7 +248,7 @@ public final class MainActivity extends Activity {
         resultOverview=column(); totals.addView(resultOverview);
         gap(resultOverview,8); LinearLayout metrics=new LinearLayout(this); resultOverview.addView(metrics);
         paidCount=metric(metrics,"Sudah",GREEN); unpaidCount=metric(metrics,"Belum",NAVY); errorCount=metric(metrics,"Error",RED);
-        gap(resultOverview,12); summary = text("Belum ada sesi", 12, MUTED, false); resultOverview.addView(summary);
+        gap(resultOverview,12); summary = text("Belum ada sesi", 12, MUTED, false); summary.setFontFeatureSettings("tnum"); resultOverview.addView(summary);
         resultOverview.setVisibility(searchText.isEmpty()?View.VISIBLE:View.GONE);
         gap(results, 16); search = new EditText(this); search.setSingleLine(true); search.setTextSize(14); search.setHint("Cari kontrak atau nama"); search.setContentDescription("Cari hasil berdasarkan kontrak atau nama"); search.setTextColor(NAVY); search.setHintTextColor(MUTED);
         search.setPadding(dp(14), dp(10), dp(14), dp(10)); search.setBackground(bg(BACK, 12, true)); search.setMinHeight(dp(52)); results.addView(search, new LinearLayout.LayoutParams(-1, -2));
@@ -304,7 +313,7 @@ public final class MainActivity extends Activity {
         for(Button b:new Button[]{viewDiag,copyDiag,exportDiag}){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.topMargin=dp(6);if(b!=exportDiag)lp.rightMargin=dp(8);b.setLayoutParams(lp);}
         gap(settings,14); LinearLayout dataCard=card(settings); dataCard.addView(text("Data aplikasi",17,NAVY,true));
         Button clear=button(dataCard,"Hapus seluruh sesi",false,v -> clearData()); clear.setTextColor(RED);
-        gap(settings, 24); TextView footer = text("MUF Checker · 0.8.5\n© Andika Pramudya 2026", 11, MUTED, false);
+        gap(settings, 24); TextView footer = text("MUF Checker · 0.8.6\n© Andika Pramudya 2026", 11, MUTED, false);
         footer.setGravity(Gravity.CENTER); settings.addView(footer);
 
         navigation=new android.widget.FrameLayout(this);navigation.setBackground(bg(Color.WHITE,28,true));
@@ -320,42 +329,111 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams navLp=new LinearLayout.LayoutParams(-1,-2);navLp.setMargins(dp(20),dp(8),dp(20),dp(12));shell.addView(navigation,navLp);
         setContentView(shell);shell.requestApplyInsets();navigation.post(() -> syncNavigation(false));
     }
+    /** Counts up from the last shown value once per change; otherwise sets the number directly. */
+    private void setCount(TextView view, int value, boolean animate) {
+        android.animation.ValueAnimator running = countAnimators.remove(view);
+        if (running != null) running.end();
+        int shown = view.getTag() instanceof Integer ? (Integer) view.getTag() : 0;
+        view.setTag(value);
+        if (!animate || shown == value) { view.setText(Integer.toString(value)); return; }
+        android.animation.ValueAnimator count = android.animation.ValueAnimator.ofInt(shown, value);
+        count.setDuration(MufTheme.MOTION_COUNT); count.setInterpolator(MufTheme.easeOut());
+        count.addUpdateListener(a -> view.setText(a.getAnimatedValue().toString()));
+        count.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(android.animation.Animator a) { view.setText(Integer.toString(value)); countAnimators.remove(view); }
+        });
+        countAnimators.put(view, count); count.start();
+    }
+    /** Progress runs at a finer resolution so a single finished contract glides instead of stepping. */
+    private void animateProgress(int value, int maximum) {
+        int max = maximum * PROGRESS_STEPS, target = value * PROGRESS_STEPS;
+        if (progress.getMax() != max) { if (progressAnimator != null) progressAnimator.cancel(); progress.setMax(max); progress.setProgress(target); return; }
+        if (progressAnimator != null && progressAnimator.isRunning()) {
+            if (((Integer) progressAnimator.getAnimatedValue()) == target) return;
+            progressAnimator.cancel();
+        } else if (progress.getProgress() == target) return;
+        if (selectedPage != 0 || !resumed || !MufTheme.motionOn()) { progress.setProgress(target); return; }
+        progressAnimator = android.animation.ObjectAnimator.ofInt(progress, "progress", progress.getProgress(), target);
+        progressAnimator.setDuration(MufTheme.MOTION_COUNT); progressAnimator.setInterpolator(MufTheme.easeOut()); progressAnimator.start();
+    }
+    /**
+     * Controls inside Aktivitas fade in/out and the card height eases (parent hierarchy is animated by the transition).
+     * Only this card: the contract field is excluded so typing never animates. Attached after the first load so launch is static.
+     */
+    private void enableCardMotion() {
+        if (cardMotion || liveCard == null) return;
+        cardMotion = true; liveCard.setLayoutTransition(calmTransition());
+    }
+    private android.animation.LayoutTransition calmTransition() {
+        android.animation.LayoutTransition t = new android.animation.LayoutTransition();
+        t.enableTransitionType(android.animation.LayoutTransition.CHANGING);
+        int[] types = {android.animation.LayoutTransition.APPEARING, android.animation.LayoutTransition.DISAPPEARING,
+            android.animation.LayoutTransition.CHANGE_APPEARING, android.animation.LayoutTransition.CHANGE_DISAPPEARING, android.animation.LayoutTransition.CHANGING};
+        for (int type : types) { t.setStartDelay(type, 0); t.setDuration(type, MufTheme.MOTION_ENTER); t.setInterpolator(type, MufTheme.move()); }
+        t.setInterpolator(android.animation.LayoutTransition.APPEARING, MufTheme.easeOut());
+        t.setDuration(android.animation.LayoutTransition.DISAPPEARING, MufTheme.MOTION_EXIT);
+        t.setInterpolator(android.animation.LayoutTransition.DISAPPEARING, MufTheme.easeIn());
+        return t;
+    }
+    /** Jump every running presentation animation to its end state (pause, rotation). */
+    private void settleMotion() {
+        for (android.animation.ValueAnimator count : new java.util.ArrayList<>(countAnimators.values())) count.end();
+        countAnimators.clear();
+        if (progressAnimator != null) progressAnimator.end();
+        for (android.animation.ValueAnimator tint : tabTints) if (tint != null) tint.end();
+        if (navigationIndicator != null) navigationIndicator.animate().cancel();
+    }
     private TextWatcher watcher(Runnable changed) { return new TextWatcher() {
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
         @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
         @Override public void afterTextChanged(Editable e) { changed.run(); }
     }; }
     private void selectPage(int index) {
+        int previous = selectedPage;
         boolean changed = selectedPage != index;
         selectedPage = index >= 0 && index < 3 ? index : 0;
+        boolean fade = changed && resumed && MufTheme.motionOn() && previous >= 0 && previous < 3 && previous != selectedPage;
         if (changed) ((android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(contract.getWindowToken(), 0);
-        for (int i = 0; i < 3; i++) { pages[i].animate().cancel(); pages[i].setAlpha(1f); pages[i].setTranslationY(0); pages[i].setVisibility(i == selectedPage ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < 3; i++) { pages[i].animate().cancel(); pages[i].setAlpha(1f); pages[i].setTranslationY(0);
+            pages[i].setVisibility(i == selectedPage || fade && i == previous ? View.VISIBLE : View.GONE);
             tabs[i].setSelected(i == selectedPage); tabs[i].setContentDescription(tabs[i].getText() + (i == selectedPage ? ", dipilih" : ""));
-            tabs[i].setTextColor(i == selectedPage ? GREEN : MUTED);
-            tabs[i].getCompoundDrawables()[1].setTint(i == selectedPage ? GREEN : MUTED); }
+            tintTab(i, i == selectedPage ? GREEN : MUTED, changed && resumed && MufTheme.motionOn()); }
         syncNavigation(changed);
         if (selectedPage == 1 && tableDirty) renderTable();
-        if (changed && android.animation.ValueAnimator.areAnimatorsEnabled()) {
-            pages[selectedPage].animate().cancel(); pages[selectedPage].setAlpha(.8f);
-            pages[selectedPage].setTranslationY(dp(4));
-            pages[selectedPage].animate().alpha(1f).translationY(0).setDuration(180).start();
+        if (fade) {
+            // Fade-through: the old page leaves quickly, then the new one settles in. Visual only; no queue work is scheduled.
+            final View out = pages[previous], in = pages[selectedPage];
+            out.animate().alpha(0f).setStartDelay(0).setDuration(MufTheme.MOTION_EXIT).setInterpolator(MufTheme.easeIn()).withLayer()
+                .withEndAction(() -> { out.setVisibility(View.GONE); out.setAlpha(1f); }).start();
+            in.setAlpha(0f); in.setTranslationY(dp(8));
+            in.animate().alpha(1f).translationY(0).setStartDelay(MufTheme.MOTION_EXIT).setDuration(MufTheme.MOTION_ENTER)
+                .setInterpolator(MufTheme.easeOut()).withLayer().start();
         }
+    }
+    private final android.animation.ValueAnimator[] tabTints = new android.animation.ValueAnimator[3];
+    /** Label and icon cross-fade between muted and accent; the indicator carries the movement. */
+    private void tintTab(int index, int color, boolean animate) {
+        TextView tab = tabs[index]; if (tab == null) return;
+        if (tabTints[index] != null) { tabTints[index].cancel(); tabTints[index] = null; }
+        int from = tab.getCurrentTextColor();
+        if (!animate || from == color) { tab.setTextColor(color); tab.getCompoundDrawables()[1].setTint(color); return; }
+        android.animation.ValueAnimator tint = android.animation.ValueAnimator.ofArgb(from, color);
+        tint.setDuration(MufTheme.MOTION_ENTER); tint.setInterpolator(MufTheme.easeOut());
+        // Cancelling keeps the in-between colour, so a quick second tap continues from what is on screen.
+        tint.addUpdateListener(a -> { int c = (int) a.getAnimatedValue(); tab.setTextColor(c); tab.getCompoundDrawables()[1].setTint(c); });
+        tabTints[index] = tint; tint.start();
     }
     /** Purely visual selection movement; never schedules queue work. */
     private void syncNavigation(boolean animate) {
         if(navigation==null || navigationTabs==null)return;
         boolean moving=animate && resumed && android.animation.ValueAnimator.areAnimatorsEnabled();
-        for(int i=0;i<tabs.length;i++)if(tabs[i]!=null){
-            tabs[i].animate().cancel();float scale=i==selectedPage?1.035f:1f;
-            if(moving)tabs[i].animate().scaleX(scale).scaleY(scale).setDuration(220).setInterpolator(new android.view.animation.OvershootInterpolator(.5f)).start();
-            else {tabs[i].setScaleX(scale);tabs[i].setScaleY(scale);}
-        }
+        for(int i=0;i<tabs.length;i++)if(tabs[i]!=null){tabs[i].setScaleX(1f);tabs[i].setScaleY(1f);}
         if(navigationTabs.getWidth()==0 || tabs[selectedPage].getWidth()==0)return;
         android.widget.FrameLayout.LayoutParams lp=(android.widget.FrameLayout.LayoutParams)navigationIndicator.getLayoutParams();
         int width=tabs[selectedPage].getWidth(),height=navigationTabs.getHeight()-dp(8);
         if(lp.width!=width || lp.height!=height){lp.width=width;lp.height=height;navigationIndicator.setLayoutParams(lp);}
         float target=tabs[selectedPage].getLeft();navigationIndicator.animate().cancel();
-        if(moving)navigationIndicator.animate().translationX(target).setDuration(260).setInterpolator(new android.view.animation.OvershootInterpolator(.5f)).start();
+        if(moving)navigationIndicator.animate().translationX(target).setStartDelay(0).setDuration(MufTheme.MOTION_MOVE).setInterpolator(MufTheme.move()).withLayer().start();
         else navigationIndicator.setTranslationX(target);
     }
     private void countInput() {
@@ -369,6 +447,8 @@ public final class MainActivity extends Activity {
     }
     private String periodLabel(YearMonth month) { return month.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("id-ID"))); }
     private TokopediaService service() { return TokopediaService.instance; }
+    /** Fast refresh while the service is checking or preparing; the revision check makes idle reads cheap but not free. */
+    private boolean pollingActive() { TokopediaService live = service(); return live != null && (live.isRunning() || live.isPreparing()) || busy; }
     private boolean running() { TokopediaService live = service(); return live != null && live.isRunning(); }
     private void requestStart() {
         if (running() || busy) return;
@@ -411,7 +491,7 @@ public final class MainActivity extends Activity {
             loading = false;
             if(!resumed){revision="!";return;}
             if (data != null) {
-                revision = data.revision; queue = data.current; history = data.sessions;
+                revision = data.revision; queue = data.current; history = data.sessions; summaries = data.summaries;
                 if (queue != null && !queue.sessionId().equals(latestSession)) {
                     if (!latestSession.isEmpty() || selectedSession.isEmpty()) selectedSession = queue.sessionId();
                     latestSession = queue.sessionId();
@@ -441,8 +521,8 @@ public final class MainActivity extends Activity {
             resultsShortcut.setVisibility(queue!=null && queue.completedCount()>0?View.VISIBLE:View.GONE);
             progressLabel.setText(queue == null ? "" : value + "/" + maximum + " selesai · " + (value * 100 / maximum) + "%");
             progress.setContentDescription(progressLabel.getText());
-            if (progress.getMax() != maximum) progress.setMax(maximum);
-            if (progress.getProgress() != value) progress.setProgress(value,selectedPage==0 && android.animation.ValueAnimator.areAnimatorsEnabled());
+            animateProgress(value, maximum);
+            enableCardMotion();
         }, error -> {
             loading = false; if(!resumed){revision="!";return;} state.setText("Data belum dapat dibaca. Jangan mulai antrean baru; tutup dan buka kembali aplikasi.");
             revision = "!"; start.setEnabled(false); resume.setVisibility(View.GONE);
@@ -475,13 +555,17 @@ public final class MainActivity extends Activity {
         sessionSelect.setContentDescription(when + (viewQueue==null?"":", ketuk untuk memilih sesi"));
         sessionMenu.setEnabled(viewQueue!=null);
         summary.setText(viewQueue == null ? "Belum ada sesi" : viewQueue.completedCount() + "/" + viewQueue.rows().size() + " selesai · " + UiPresentation.duration(viewQueue.activeMs()));
-        int paid = 0, unpaid = 0;
-        if (viewQueue != null) for (BulkQueue.Row r : viewQueue.rows()) { if (status(r).equals("SUDAH BAYAR")) paid++; if (status(r).equals("BELUM BAYAR")) unpaid++; }
-        paidCount.setText(Integer.toString(paid)); unpaidCount.setText(Integer.toString(unpaid)); errorCount.setText(Integer.toString(viewQueue==null?0:viewQueue.errorCount()));
+        AppRepository.Summary counted = viewQueue == null ? null : summaries.get(viewQueue);
+        if (viewQueue != null && counted == null) { counted = AppRepository.summarize(viewQueue); summaries.put(viewQueue, counted); }
+        int paid = counted == null ? 0 : counted.paid, unpaid = counted == null ? 0 : counted.unpaid;
+        String countKey = viewQueue == null ? "" : viewQueue.sessionId();
+        boolean countUp = countKey.equals(countSession) && selectedPage == 1 && resumed && MufTheme.motionOn();
+        countSession = countKey;
+        setCount(paidCount, paid, countUp); setCount(unpaidCount, unpaid, countUp); setCount(errorCount, viewQueue==null?0:viewQueue.errorCount(), countUp);
         diagnosisChoice.setText("Pilih sesi");
         diagnosisChoice.setContentDescription(viewQueue==null?"Pilih sesi diagnosis":"Pilih sesi diagnosis, terpilih " + when);
         updateRetryVisibility();
-        String nextTableKey = UiPresentation.tableKey(viewQueue);
+        String nextTableKey = counted == null ? UiPresentation.tableKey(null) : counted.tableKey;
         if (!nextTableKey.equals(tableKey)) { tableKey = nextTableKey; tableDirty=true; if(selectedPage==1)renderTable(); }
     }
     private void updateRetryVisibility() {
@@ -588,12 +672,7 @@ public final class MainActivity extends Activity {
             + "\nPeriode: " + periodLabel(YearMonth.parse(j.getString("period"))) + "\n\n" + j.getString("reason") + "\nSumber: " + j.optString("source", "Tokopedia");
         } catch (Exception e) { return "Rincian belum dapat dibaca."; }
     }
-    private String status(BulkQueue.Row row) {
-        if (row.state() == BulkQueue.RowState.WAITING) return "MENUNGGU";
-        if (row.state() == BulkQueue.RowState.PROCESSING) return "DIPROSES";
-        if (row.state() == BulkQueue.RowState.ERROR) return "ERROR";
-        try { return ResultFormatter.status(new JSONObject(row.result()).getString("status")); } catch (Exception e) { return "ERROR"; }
-    }
+    private String status(BulkQueue.Row row) { return AppRepository.rowStatus(row); }
     private static final class ResultItem {
         final BulkQueue.Row source;
         final int ordinal;
