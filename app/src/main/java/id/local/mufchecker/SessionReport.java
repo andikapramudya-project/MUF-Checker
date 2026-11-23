@@ -9,7 +9,7 @@ import java.util.Map;
 public final class SessionReport {
     private SessionReport() { }
     public static String render(BulkQueue queue, List<String> reports) {
-        StringBuilder out = new StringBuilder("MUF Checker 0.8.5 — DIAGNOSIS SESI\n");
+        StringBuilder out = new StringBuilder("MUF Checker 0.8.6 — DIAGNOSIS SESI\n");
         out.append("Periode: ").append(queue.period).append("\nStatus: ").append(queue.state());
         out.append("\nMode: ").append(queue.startMode() == BulkQueue.StartMode.READY_PAGE ? "HALAMAN_TOKOPEDIA_SIAP" : "TAUTAN_MUF_LANGSUNG");
         out.append("\nJumlah kontrak: ").append(queue.rows().size()).append("; berhasil: ").append(queue.completedCount() - queue.errorCount()).append("; error: ").append(queue.errorCount());
