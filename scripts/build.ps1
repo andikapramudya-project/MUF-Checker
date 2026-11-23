@@ -7,8 +7,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$buildRoot = Join-Path $projectRoot '.build\0.8.5'
-$outputRoot = Join-Path $projectRoot 'releases\0.8.5'
+$buildRoot = Join-Path $projectRoot '.build\0.8.6'
+$outputRoot = Join-Path $projectRoot 'releases\0.8.6'
 $debugKey = $Keystore
 if (-not $Unsigned -and (-not $debugKey -or -not (Test-Path -LiteralPath $debugKey))) { throw 'Set MUF_KEYSTORE to the original private signing key, or use -Unsigned. No key is generated.' }
 if (-not $Unsigned -and -not $env:MUF_STORE_PASSWORD) { throw 'Set MUF_STORE_PASSWORD in the local environment for signing.' }
@@ -57,7 +57,7 @@ $manifest = Get-Content -LiteralPath "$projectRoot\app\src\main\AndroidManifest.
 $manifest = $manifest.Replace('<manifest xmlns:android=', '<manifest package="id.local.mufchecker" xmlns:android=')
 [System.IO.File]::WriteAllText("$buildRoot\AndroidManifest.xml", $manifest, (New-Object System.Text.UTF8Encoding $false))
 Invoke-NativeChecked (Join-Path $toolsRoot 'aapt2.exe') @('compile', '--dir', "$projectRoot\app\src\main\res", '-o', "$buildRoot\resources.zip")
-Invoke-NativeChecked (Join-Path $toolsRoot 'aapt2.exe') @('link', '-I', $androidJar, '--manifest', "$buildRoot\AndroidManifest.xml", '--java', "$buildRoot\generated", '--auto-add-overlay', '--version-code', '19', '--version-name', '0.8.5', '-o', "$buildRoot\resources.apk", "$buildRoot\resources.zip")
+Invoke-NativeChecked (Join-Path $toolsRoot 'aapt2.exe') @('link', '-I', $androidJar, '--manifest', "$buildRoot\AndroidManifest.xml", '--java', "$buildRoot\generated", '--auto-add-overlay', '--version-code', '20', '--version-name', '0.8.6', '-o', "$buildRoot\resources.apk", "$buildRoot\resources.zip")
 $sources = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -Filter '*.java' | ForEach-Object { $_.FullName })
 $sources += @(Get-ChildItem -LiteralPath "$buildRoot\generated" -Recurse -Filter '*.java' | ForEach-Object { $_.FullName })
 $javacArguments = @('-encoding', 'UTF-8', '--release', '8', '-classpath', $androidJar, '-d', "$buildRoot\classes") + $sources
@@ -67,7 +67,7 @@ Invoke-NativeChecked $javaExe @('-cp', "$toolsRoot\lib\d8.jar", 'com.android.too
 Copy-Item -LiteralPath "$buildRoot\resources.apk" -Destination "$buildRoot\unsigned.apk" -Force
 Invoke-NativeChecked $jarExe @("-J-Djava.io.tmpdir=$buildRoot\temp", 'uf', "$buildRoot\unsigned.apk", '-C', "$buildRoot\dex", 'classes.dex')
 Invoke-NativeChecked (Join-Path $toolsRoot 'zipalign.exe') @('-f', '4', "$buildRoot\unsigned.apk", "$buildRoot\aligned.apk")
-$apkName = if ($Unsigned) { 'MUF-Checker-0.8.5-unsigned.apk' } else { 'MUF-Checker-0.8.5.apk' }
+$apkName = if ($Unsigned) { 'MUF-Checker-0.8.6-unsigned.apk' } else { 'MUF-Checker-0.8.6.apk' }
 $apkPath = Join-Path $outputRoot $apkName
 if ($Unsigned) {
     Copy-Item -LiteralPath "$buildRoot\aligned.apk" -Destination $apkPath -Force

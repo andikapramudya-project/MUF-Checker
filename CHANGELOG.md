@@ -1,5 +1,15 @@
 # Catatan rilis
 
+## 0.8.6 — 23 November 2026
+
+- Kapsul status berwarna pada tabel Hasil dan rincian; **Belum bayar** memakai kuning tua tersendiri, terpisah dari Error (merah) dan Proses/Tunggu (abu). Warna `AMBER` yang sebelumnya sama dengan teks utama kini benar-benar kuning tua, sehingga "Aksesibilitas belum tersambung" tampil sebagai peringatan.
+- Kartu Sudah/Belum/Error dapat diketuk untuk memfilter; chip filter menampilkan jumlah (misalnya "Belum 8"); angka kartu menghitung naik 300 ms saat berubah di tab Hasil.
+- Panel mengambang: garis progres tipis di tepi bawah dan animasi muncul 200 ms. Hanya presentasi; jadwal dan penjagaan inquiry tidak berubah.
+- Tab Periksa: nomor baris yang tidak valid disebut (maks. lima) dan perkiraan sisa waktu muncul setelah dua kontrak selesai.
+- Token gerak 100/150/200/300 ms: efek pantul dan skala pada navigasi dihapus, dialog masuk 200 ms ease-out dan keluar 150 ms ease-in. Semua animasi tetap mengikuti setelan animasi Android.
+- Pembacaan ulang data saat tidak ada antrean aktif turun dari tiap 0,9 detik menjadi tiap 3 detik. Versi di footer dibaca dari paket aplikasi.
+- Menambah 2 pemeriksaan host untuk perkiraan sisa waktu. VersionCode 20/versionName 0.8.6; schema, serializer, logika inquiry, dan sertifikat pembaruan tidak berubah.
+
 ## 0.8.5 — 4 November 2026
 
 - Pesan pembatasan cabang, nomor kontrak/pelanggan tidak ditemukan/tidak valid, serta tagihan tidak tersedia disimpan sebagai ERROR kontrak dan dilewati setelah checkpoint. Dua ERROR kontrak berurutan tidak menghentikan antrean; alasan pembatasan tetap eksplisit.
