@@ -3,7 +3,7 @@
 <p align="center">Pemeriksaan indikasi status angsuran MUF melalui tampilan Tokopedia.</p>
 
 <p align="center">
-  <img alt="Versi" src="https://img.shields.io/badge/versi-0.8.6-1b7f5a?style=flat-square" />
+  <img alt="Versi" src="https://img.shields.io/badge/versi-0.8.5-1b7f5a?style=flat-square" />
   <img alt="Platform" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=flat-square" />
   <img alt="Bahasa" src="https://img.shields.io/badge/Java-native-b07219?style=flat-square" />
   <img alt="Data" src="https://img.shields.io/badge/data-lokal-555?style=flat-square" />
@@ -41,7 +41,7 @@ MUF Checker membantu memeriksa banyak nomor kontrak MUF sekaligus. Aplikasi beke
 
 | Direktori | Isi |
 | --- | --- |
-| `app/` | Aplikasi Android native 0.8.6 (`id.local.mufchecker`). |
+| `app/` | Aplikasi Android native 0.8.5 (`id.local.mufchecker`). |
 | `web/` | Dashboard PWA React dan add-on Firefox (modul parser dan antrean, versi 2.0.0). |
 | `tests/` | Pengujian Java/host dan instrumentasi Android dengan data sintetis. |
 | `scripts/` | Skrip build Android dan APK smoke test. |
@@ -156,6 +156,6 @@ Pengujian emulator dan UI (termasuk Poco X7 5G/HyperOS) tidak menggantikan valid
 | [web/README.md](web/README.md) | Dashboard dan add-on Firefox |
 | [web/docs/](web/docs) | Instalasi, deployment, kalibrasi selector, pemecahan masalah |
 
-## Terbaru: 0.8.6
+## Terbaru: 0.8.5
 
-Penyegaran tampilan dan gerak: kapsul status berwarna (Belum bayar kini kuning tua), progres pada panel mengambang, kartu hitungan dan chip filter yang dapat diketuk, serta gerak 100–300 ms yang mengikuti setelan animasi Android. Logika pemeriksaan tidak berubah. Detail lengkap ada di [CHANGELOG.md](CHANGELOG.md).
+ERROR kontrak yang terbaca jelas kini dilewati setelah checkpoint tersimpan, form MUF yang diam dibatasi 10 detik pengamatan, dan pesan singkat dari event aksesibilitas ditampung sebagai kategori tetap. Detail lengkap ada di [CHANGELOG.md](CHANGELOG.md).
