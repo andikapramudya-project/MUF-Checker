@@ -31,28 +31,6 @@ final class FloatingPanel extends LinearLayout {
         stop.setContentDescription(preparing?"Batalkan persiapan":"STOP, hentikan pemeriksaan segera");
         LayoutParams stopLp=new LayoutParams(-2,-2);stopLp.leftMargin=dp(6);addView(stop,stopLp);
     }
-    private float shown, target; private android.animation.ValueAnimator mover;
-    private final android.graphics.Paint line=new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-    /** Thin bottom progress line; presentation only, never read by the queue. */
-    void setProgress(int done,int total){
-        float next=total<=0?0f:Math.max(0f,Math.min(1f,done/(float)total));
-        if(next==target)return;target=next;
-        if(mover!=null)mover.cancel();
-        if(!MufTheme.motionOn()||!isAttachedToWindow()){shown=next;invalidate();return;}
-        mover=android.animation.ValueAnimator.ofFloat(shown,next).setDuration(MufTheme.MOTION_SLOW);
-        mover.setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f));
-        mover.addUpdateListener(a->{shown=(Float)a.getAnimatedValue();invalidate();});mover.start();
-    }
-    @Override protected void dispatchDraw(android.graphics.Canvas canvas){
-        super.dispatchDraw(canvas);
-        if(shown<=0f)return;
-        float inset=dp(14),width=(getWidth()-2*inset),y=getHeight()-dp(3);
-        line.setStrokeCap(android.graphics.Paint.Cap.ROUND);line.setStrokeWidth(dp(2));
-        line.setColor(Color.argb(60,255,255,255));canvas.drawLine(inset,y,inset+width,y,line);
-        line.setColor(Color.rgb(110,220,170));canvas.drawLine(inset,y,inset+width*shown,y,line);
-    }
-    @Override protected void onAttachedToWindow(){super.onAttachedToWindow();MufTheme.rise(this,8,MufTheme.MOTION_ENTER);}
-    @Override protected void onDetachedFromWindow(){if(mover!=null)mover.cancel();super.onDetachedFromWindow();}
     private int dp(int value){return MufTheme.dp(getContext(),value);}
     private Button action(String label,boolean main,boolean danger) {
         Button button=new Button(getContext());button.setText(label);button.setAllCaps(false);button.setTextSize(13);

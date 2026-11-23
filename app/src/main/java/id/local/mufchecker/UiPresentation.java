@@ -15,11 +15,6 @@ public final class UiPresentation {
         long seconds = Math.max(0, millis) / 1000;
         return seconds < 60 ? seconds + "d" : seconds / 60 + "m " + seconds % 60 + "d";
     }
-    /** Rough time left from the average of finished contracts; empty until there is a sample to average. */
-    public static String eta(long activeMs, int done, int total) {
-        if (done < 2 || done >= total || activeMs <= 0) return "";
-        return "sisa ± " + duration(activeMs / done * (total - done));
-    }
     /** Labels always carry meaning in text, including for monochrome and screen readers. */
     public static String statusLabel(String status) {
         if ("SUDAH BAYAR".equals(status)) return "✓ Sudah bayar";
