@@ -26,21 +26,21 @@ describe("input dan parser", () => {
     expect(parseIndonesianDate(value)?.month).toBe(9);
   });
   it("membaca beberapa pemisah, duplikat, dan nomor invalid", () => {
-    const parsed = parseContractList("070224001234, 070224001235;\n070224001234 abc");
+    const parsed = parseContractList("070229001234, 070229001235;\n070229001234 abc");
     expect(parsed.valid).toHaveLength(2);
     expect(parsed.duplicates).toHaveLength(1);
     expect(parsed.invalid).toEqual(["abc"]);
   });
   it("tidak mengubah digit saat normalisasi dan menyamarkan", () => {
-    expect(normalizeContract("0702-2400.1234")).toBe("070224001234");
-    expect(maskContract("070224001234")).toBe("07022400****");
+    expect(normalizeContract("0702-2900.1234")).toBe("070229001234");
+    expect(maskContract("070229001234")).toBe("07022900****");
   });
 });
 
 describe("antrean, checkpoint, origin, dan pengaman", () => {
   const items: QueueItem[] = [
-    { id: "1", contractNumber: "070224001234", maskedContract: "07022400****", period: { year: 2026, month: 8 }, status: "MENUNGGU", attempts: 0 },
-    { id: "2", contractNumber: "070224001235", maskedContract: "07022400****", period: { year: 2026, month: 8 }, status: "MENUNGGU", attempts: 0 }
+    { id: "1", contractNumber: "070229001234", maskedContract: "07022900****", period: { year: 2026, month: 8 }, status: "MENUNGGU", attempts: 0 },
+    { id: "2", contractNumber: "070229001235", maskedContract: "07022900****", period: { year: 2026, month: 8 }, status: "MENUNGGU", attempts: 0 }
   ];
   it("berjalan sekuensial serta pause dan resume", () => {
     const queue = new SequentialQueue(structuredClone(items));

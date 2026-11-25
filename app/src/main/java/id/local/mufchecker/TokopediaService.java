@@ -255,7 +255,7 @@ public final class TokopediaService extends AccessibilityService {
         }
     }
     private void recordPreparation(String report) {
-        preparationSnapshot = "MUF Checker 0.8.6\nTahap: PREPARE_FORM\n" + report;
+        preparationSnapshot = "MUF Checker 0.9.1\nTahap: PREPARE_FORM\n" + report;
         trace.record("PREPARE_FORM", preparationSnapshot); persistTrace();
     }
     private void requestPreparedStart() {
@@ -746,7 +746,7 @@ public final class TokopediaService extends AccessibilityService {
         return false;
     }
     private String diagnosticHeader() {
-        return "MUF Checker 0.8.6\nPerangkat: " + Build.MANUFACTURER + " " + Build.MODEL
+        return "MUF Checker 0.9.1\nPerangkat: " + Build.MANUFACTURER + " " + Build.MODEL
             + "\nAntrean: " + (batch.currentIndex() + 1) + "/" + batch.rows().size()
             + "\nAndroid: " + Build.VERSION.RELEASE + " / API " + Build.VERSION.SDK_INT
             + "\nTokopedia: " + tokopediaVersion + "\nTahap: " + session.stage()
