@@ -68,7 +68,7 @@ public final class MainActivity extends Activity {
     private TextView periodView, state, connection, inputCount, summary, empty;
     private Button start, stop, pause, resume, retry, periodButton;
     private ProgressBar progress;
-    private Button modeButton;
+    private TextView modeButton;
     private android.widget.Switch awake;
     private BulkQueue.StartMode startMode = BulkQueue.StartMode.READY_PAGE;
     private ListView resultList;
@@ -83,7 +83,12 @@ public final class MainActivity extends Activity {
     private static final int PROGRESS_STEPS = 100;
     private final Runnable searchRefresh = () -> renderTable();
     private final View[] pages = new View[3];
-    private final TextView[] tabs = new TextView[3];
+    private final View[] tabs = new View[3];
+    private final TextView[] tabLabels = new TextView[3];
+    private final android.widget.ImageView[] tabIcons = new android.widget.ImageView[3];
+    private Segmented filterControl;
+    private ResultRow measureRow;
+    private View modeRow;
     private YearMonth period;
     private String revision = "!", filter = "Semua", searchText = "";
     private int selectedPage;
@@ -132,17 +137,21 @@ public final class MainActivity extends Activity {
     private GradientDrawable bg(int color, int radius, boolean border) {
         return MufTheme.shape(this,color,radius,border);
     }
+    /** Grouped surface card: #F7F7F9, radius 20, no border or shadow. */
     private LinearLayout card(LinearLayout parent) {
-        LinearLayout c = column(); c.setPadding(dp(16), dp(16), dp(16), dp(16)); c.setBackground(bg(Color.WHITE, 16, true));
+        LinearLayout c = column(); c.setPadding(dp(16), dp(16), dp(16), dp(16)); c.setBackground(bg(MufTheme.SURFACE, MufTheme.R_CARD, false));
         parent.addView(c, new LinearLayout.LayoutParams(-1, -2)); return c;
     }
+    /** Primary: green, 52 dp, radius 14, white 16 sp medium. Secondary: soft fill with green text, no outline. */
     private Button button(LinearLayout parent, String label, boolean primary, View.OnClickListener action) {
-        Button b = new Button(this); b.setText(label); b.setAllCaps(false); b.setTextSize(14); b.setMinHeight(dp(48));
+        Button b = new Button(this); b.setText(label); b.setAllCaps(false); b.setTextSize(primary ? 16 : 14); b.setMinHeight(dp(primary ? 52 : 48)); b.setMinimumHeight(dp(primary ? 52 : 48));
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         MufTheme.flatten(b);
-        b.setTextColor(new android.content.res.ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}}, new int[]{MUTED, primary ? Color.WHITE : GREEN})); b.setBackground(MufTheme.touch(this,primary ? GREEN : Color.WHITE,12,!primary));
-        b.setPadding(dp(10), dp(10), dp(10), dp(10));
+        b.setTextColor(new android.content.res.ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}}, new int[]{MUTED, primary ? Color.WHITE : GREEN}));
+        b.setBackground(MufTheme.touch(this, primary ? GREEN : MufTheme.FILL, primary ? MufTheme.R_PRIMARY : MufTheme.R_CONTROL, false));
+        b.setPadding(dp(12), dp(10), dp(12), dp(10));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.topMargin = dp(10); parent.addView(b, lp);
-        b.setOnClickListener(action); return b;
+        b.setOnClickListener(action); MufTheme.pressable(b); return b;
     }
     private LinearLayout page(android.widget.FrameLayout host, int index) {
         LinearLayout body = column();
@@ -164,13 +173,14 @@ public final class MainActivity extends Activity {
         return body;
     }
     private TextView metric(LinearLayout parent, String label, int color) {
-        LinearLayout c = column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(bg(BACK,12,false));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,-2,1); lp.setMargins(dp(3),0,dp(3),0); parent.addView(c,lp);
-        TextView value = text("0",24,color,true); value.setFontFeatureSettings("tnum"); value.setTag(0); c.addView(value); c.addView(text(label,12,MUTED,false)); return value;
+        LinearLayout c = column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(bg(MufTheme.FILL,MufTheme.R_CONTROL,false));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,-2,1); lp.setMargins(dp(4),0,dp(4),0); parent.addView(c,lp);
+        TextView value = text("0",28,color,true); value.setLineSpacing(0,1f); value.setFontFeatureSettings("tnum"); value.setTag(0); c.addView(value);
+        TextView caption = text(label,12,MUTED,true); caption.setLetterSpacing(.02f); c.addView(caption); return value;
     }
     private void updateModeLabel() {
         String label = startMode == BulkQueue.StartMode.READY_PAGE ? "Halaman Tokopedia siap" : "Tautan MUF";
-        if (modeButton != null) { modeButton.setText(label); modeButton.setContentDescription("Mode pemeriksaan, " + label + ", ketuk untuk mengubah"); }
+        if (modeButton != null) { modeButton.setText(label); modeRow.setContentDescription("Mode pemeriksaan, " + label + ", ketuk untuk mengubah"); }
         if (start != null) start.setText(startMode == BulkQueue.StartMode.READY_PAGE ? "Siapkan pemeriksaan" : "Mulai melalui tautan");
     }
     private void chooseMode() {
@@ -186,7 +196,12 @@ public final class MainActivity extends Activity {
     private void buildUi() {
         LinearLayout shell = column(); shell.setBackgroundColor(BACK);
         shell.setOnApplyWindowInsetsListener((v, insets) -> {
-            v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom()); return insets;
+            int bottom = insets.getSystemWindowInsetBottom();
+            v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), bottom);
+            // Floating bar sits max(navigation inset, 15 dp) above the screen edge.
+            if (navigation != null) { LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) navigation.getLayoutParams();
+                int margin = Math.max(0, dp(15) - bottom); if (lp.bottomMargin != margin) { lp.bottomMargin = margin; navigation.setLayoutParams(lp); } }
+            return insets;
         });
         LinearLayout brand = new LinearLayout(this); brand.setGravity(Gravity.CENTER_VERTICAL); brand.setPadding(dp(20), dp(16), dp(20), dp(8));
         TextView wordmark = text("MUF CHECKER", 14, GREEN, true); wordmark.setLetterSpacing(.10f); brand.addView(wordmark);
@@ -197,29 +212,36 @@ public final class MainActivity extends Activity {
         LinearLayout checking = page(pageHost, 0);
         LinearLayout form = card(checking);
         LinearLayout periodRow = new LinearLayout(this); periodRow.setGravity(Gravity.CENTER_VERTICAL);
-        periodRow.setPadding(dp(12),dp(8),dp(12),dp(8));periodRow.setBackground(bg(MufTheme.SOFT_GREEN,12,false));form.addView(periodRow);
+        periodRow.setPadding(dp(12),dp(6),dp(8),dp(6));periodRow.setBackground(bg(MufTheme.FILL,MufTheme.R_CONTROL,false));form.addView(periodRow);
         LinearLayout periodLabels=column();LinearLayout.LayoutParams labelsLp=new LinearLayout.LayoutParams(0,-2,1);labelsLp.rightMargin=dp(8);periodRow.addView(periodLabels,labelsLp);
-        periodLabels.addView(text("Periode",11,MUTED,false));periodView=text(periodLabel(period),14,NAVY,true);periodView.setLineSpacing(0,1f);periodLabels.addView(periodView);
+        TextView periodCaption=text("Periode",11,MUTED,false);periodCaption.setLineSpacing(0,1f);periodLabels.addView(periodCaption);
+        periodView=text(periodLabel(period),16,NAVY,true);periodView.setLineSpacing(0,1f);periodLabels.addView(periodView);
         periodButton=button(periodRow,"Ubah",false,v -> pickPeriod());periodButton.setMinWidth(dp(64));periodButton.setMinimumWidth(dp(64));
-        periodButton.setTextSize(13);
-        periodButton.setLayoutParams(new LinearLayout.LayoutParams(-2,-2));
-        gap(form,16); form.addView(text("Nomor kontrak", 14, NAVY, true));
+        periodButton.setTextSize(13);periodButton.setPadding(dp(16),0,dp(16),0);
+        // Small white pill drawn inside a 48 dp touch target.
+        GradientDrawable pill=bg(Color.WHITE,999,false);
+        periodButton.setBackground(MufTheme.touch(new android.graphics.drawable.InsetDrawable(pill,0,dp(7),0,dp(7))));
+        periodButton.setLayoutParams(new LinearLayout.LayoutParams(-2,dp(48)));
+        gap(form,16); form.addView(text("Nomor kontrak", 16, NAVY, true));
         contract = new EditText(this); contract.setId(1001); contract.setTextSize(16); contract.setTextColor(NAVY); contract.setHintTextColor(MUTED); contract.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL)); contract.setGravity(Gravity.TOP);
         contract.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         contract.setMinLines(4); contract.setMaxLines(7); contract.setPadding(dp(12), dp(12), dp(12), dp(12));
-        contract.setBackground(bg(BACK, 12, true)); contract.setHint("Satu nomor per baris");
+        final GradientDrawable fieldShape = bg(MufTheme.FILL, MufTheme.R_CONTROL, false); final int focusStroke = Math.round(1.5f * getResources().getDisplayMetrics().density);
+        fieldShape.setStroke(focusStroke, MufTheme.FILL); contract.setBackground(fieldShape); contract.setHint("Satu nomor per baris");
+        contract.setOnFocusChangeListener((v, focused) -> fadeStroke(fieldShape, focusStroke, focused ? GREEN : MufTheme.FILL));
         contract.setContentDescription("Nomor kontrak MUF, satu nomor per baris, maksimal " + BulkQueue.LIMIT);
         contract.setText(prefs.getString("last_contracts", prefs.getString("last_contract", "")));
-        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(-1, -2); fieldLp.topMargin = dp(12); form.addView(contract, fieldLp);
-        inputCount = text("", 12, MUTED, false); gap(form, 8); form.addView(inputCount);
+        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(-1, -2); fieldLp.topMargin = dp(8); form.addView(contract, fieldLp);
+        inputCount = text("", 12, MUTED, false); inputCount.setFontFeatureSettings("tnum"); gap(form, 8); form.addView(inputCount);
         contract.addTextChangedListener(watcher(() -> countInput())); countInput();
         startMode = "DIRECT_LINK".equals(prefs.getString("start_mode", "READY_PAGE"))
             ? BulkQueue.StartMode.DIRECT_LINK : BulkQueue.StartMode.READY_PAGE;
         gap(form,4);
         start = button(form, startMode == BulkQueue.StartMode.READY_PAGE ? "Siapkan pemeriksaan" : "Mulai melalui tautan", true, v -> requestStart());
         gap(form,8); form.addView(text("Buka form MUF, tekan Mulai di panel.",12,MUTED,false));
-        gap(checking, 14); LinearLayout live = card(checking); liveCard = live;
-        live.addView(text("Aktivitas", 15, NAVY, true)); gap(live, 8); state = text("Belum ada pemeriksaan.", 13, MUTED, false); live.addView(state);
+        gap(checking, 12); LinearLayout live = card(checking); liveCard = live;
+        TextView liveTitle = text("Aktivitas", 16, NAVY, true); if (android.os.Build.VERSION.SDK_INT >= 28) liveTitle.setAccessibilityHeading(true);
+        live.addView(liveTitle); gap(live, 6); state = text("Belum ada pemeriksaan.", 14, MUTED, false); live.addView(state);
         state.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         activityNote=text("",12,MUTED,false); activityNote.setMaxLines(3); activityNote.setEllipsize(android.text.TextUtils.TruncateAt.END); live.addView(activityNote);
         activityNote.setMinHeight(dp(48));
@@ -238,42 +260,44 @@ public final class MainActivity extends Activity {
         LinearLayout results = page(pageHost, 1);
         LinearLayout totals = card(results); sessionList = column(); totals.addView(sessionList);
         LinearLayout selector = new LinearLayout(this); selector.setGravity(Gravity.CENTER_VERTICAL); sessionList.addView(selector);
-        sessionSelect=text("Belum ada sesi",14,MUTED,false); sessionSelect.setPadding(0,dp(8),dp(8),dp(8)); sessionSelect.setGravity(Gravity.CENTER_VERTICAL); sessionSelect.setMinHeight(dp(48));
-        sessionSelect.setBackground(MufTheme.touch(this,Color.WHITE,12,false)); sessionSelect.setOnClickListener(v -> chooseDiagnosisSession());
+        sessionSelect=text("Belum ada sesi",16,NAVY,true); sessionSelect.setPadding(dp(4),dp(8),dp(8),dp(8)); sessionSelect.setGravity(Gravity.CENTER_VERTICAL); sessionSelect.setMinHeight(dp(48));
+        sessionSelect.setBackground(MufTheme.touch(this,MufTheme.SURFACE,MufTheme.R_CONTROL,false)); sessionSelect.setOnClickListener(v -> chooseDiagnosisSession()); MufTheme.pressable(sessionSelect);
         selector.addView(sessionSelect,new LinearLayout.LayoutParams(0,-2,1));
         sessionMenu=text("",24,MUTED,true);
-        android.graphics.drawable.Drawable menuIcon=getDrawable(R.drawable.ic_more); menuIcon.setTint(MUTED);
+        android.graphics.drawable.Drawable menuIcon=getDrawable(R.drawable.ic_more).mutate(); menuIcon.setTint(MUTED);
         menuIcon.setBounds(0,0,dp(24),dp(24)); sessionMenu.setCompoundDrawables(menuIcon,null,null,null); sessionMenu.setPadding(dp(12),dp(12),dp(12),dp(12)); sessionMenu.setGravity(Gravity.CENTER); sessionMenu.setMinHeight(dp(48)); sessionMenu.setContentDescription("Menu sesi");
+        sessionMenu.setBackground(MufTheme.touch(this,MufTheme.SURFACE,999,false));
         selector.addView(sessionMenu,new LinearLayout.LayoutParams(dp(48),dp(48))); sessionMenu.setOnClickListener(v -> sessionActions());
         resultOverview=column(); totals.addView(resultOverview);
         gap(resultOverview,8); LinearLayout metrics=new LinearLayout(this); resultOverview.addView(metrics);
         paidCount=metric(metrics,"Sudah",GREEN); unpaidCount=metric(metrics,"Belum",NAVY); errorCount=metric(metrics,"Error",RED);
         gap(resultOverview,12); summary = text("Belum ada sesi", 12, MUTED, false); summary.setFontFeatureSettings("tnum"); resultOverview.addView(summary);
         resultOverview.setVisibility(searchText.isEmpty()?View.VISIBLE:View.GONE);
-        gap(results, 16); search = new EditText(this); search.setSingleLine(true); search.setTextSize(14); search.setHint("Cari kontrak atau nama"); search.setContentDescription("Cari hasil berdasarkan kontrak atau nama"); search.setTextColor(NAVY); search.setHintTextColor(MUTED);
-        search.setPadding(dp(14), dp(10), dp(14), dp(10)); search.setBackground(bg(BACK, 12, true)); search.setMinHeight(dp(52)); results.addView(search, new LinearLayout.LayoutParams(-1, -2));
-        search.setText(searchText);
+        // Search field: glyph, soft fill, clear button only when there is text.
+        gap(results, 12); LinearLayout searchRow = new LinearLayout(this); searchRow.setGravity(Gravity.CENTER_VERTICAL);
+        searchRow.setBackground(bg(MufTheme.FILL, MufTheme.R_CONTROL, false)); searchRow.setMinimumHeight(dp(48)); results.addView(searchRow, new LinearLayout.LayoutParams(-1, -2));
+        search = new EditText(this); search.setSingleLine(true); search.setTextSize(16); search.setHint("Cari kontrak atau nama"); search.setContentDescription("Cari hasil berdasarkan kontrak atau nama"); search.setTextColor(NAVY); search.setHintTextColor(MUTED);
+        search.setBackground(null); search.setPadding(dp(12), dp(10), dp(4), dp(10)); search.setMinHeight(dp(48));
+        android.graphics.drawable.Drawable glass = getDrawable(R.drawable.ic_search).mutate(); glass.setTint(MUTED); glass.setBounds(0, 0, dp(18), dp(18));
+        search.setCompoundDrawables(glass, null, null, null); search.setCompoundDrawablePadding(dp(8));
+        searchRow.addView(search, new LinearLayout.LayoutParams(0, -2, 1));
+        final android.widget.ImageView clearSearch = new android.widget.ImageView(this); clearSearch.setImageResource(R.drawable.ic_clear); clearSearch.setColorFilter(MUTED);
+        clearSearch.setScaleType(android.widget.ImageView.ScaleType.CENTER); clearSearch.setContentDescription("Hapus pencarian"); clearSearch.setBackground(MufTheme.touch(null));
+        clearSearch.setOnClickListener(v -> search.setText("")); searchRow.addView(clearSearch, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        search.setText(searchText); clearSearch.setVisibility(searchText.isEmpty() ? View.GONE : View.VISIBLE);
         search.addTextChangedListener(watcher(() -> {
-            searchText = search.getText().toString();
+            searchText = search.getText().toString(); clearSearch.setVisibility(searchText.isEmpty() ? View.GONE : View.VISIBLE);
             resultOverview.setVisibility(searchText.isEmpty()?View.VISIBLE:View.GONE); updateRetryVisibility();
             handler.removeCallbacks(searchRefresh); handler.postDelayed(searchRefresh, 180);
         }));
-        LinearLayout filters = new LinearLayout(this); gap(results, 10); results.addView(filters);
-        for (String value : new String[]{"Semua", "Belum", "Sudah", "Error"}) {
-            TextView chip = text(value, 12, MUTED, true); chip.setGravity(Gravity.CENTER); chip.setMinHeight(dp(48));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1); lp.rightMargin = dp(4); filters.addView(chip, lp);
-            chip.setOnClickListener(v -> { filter = value; for (int i = 0; i < filters.getChildCount(); i++) {
-                TextView other = (TextView) filters.getChildAt(i); boolean chosen = other.getText().toString().equals(filter);
-                other.setSelected(chosen); other.setContentDescription(other.getText() + (chosen ? ", dipilih" : ""));
-                other.setBackground(MufTheme.touch(this,chosen ? MufTheme.SOFT_GREEN : Color.WHITE,10,!chosen)); other.setTextColor(chosen ? GREEN : MUTED);
-            } renderTable(); });
-            chip.setSelected(value.equals(filter)); chip.setContentDescription(value + (chip.isSelected() ? ", dipilih" : ""));
-            chip.setBackground(MufTheme.touch(this,chip.isSelected()?MufTheme.SOFT_GREEN:Color.WHITE,10,!chip.isSelected()));
-        }
+        gap(results, 12);
+        filterControl = new Segmented(new String[]{"Semua", "Belum", "Sudah", "Error"}, value -> { filter = value; renderTable(); });
+        results.addView(filterControl, new LinearLayout.LayoutParams(-1, -2)); filterControl.select(filter, false);
         gap(results, 16);
         empty = text("Belum ada hasil. Siapkan pemeriksaan di tab Periksa.", 14, MUTED, false); results.addView(empty);
         retry = button(results, "Coba ulang ERROR", false, v -> retryErrors());
         gap(results,12);tableHeading=new ResultRow(true);results.addView(tableHeading);tableHeading.setVisibility(View.GONE);
+        measureRow=new ResultRow(false);
         measureTableColumns(java.util.Collections.emptyList());
         resultAdapter = new ResultAdapter(); resultList.setAdapter(resultAdapter);
         resultList.setOnItemClickListener((parent, view, position, id) -> {
@@ -283,51 +307,127 @@ public final class MainActivity extends Activity {
             }
         });
 
+        // Pengaturan: grouped inset rows with a small header above each group.
         LinearLayout settings = page(pageHost, 2);
-        LinearLayout access = card(settings); access.addView(text("Akses & layar",17,NAVY,true)); gap(access,8);
-        connection = text("Memeriksa akses…", 14, MUTED, false); access.addView(connection);
-        button(access, "Kelola akses", false, v -> explainAccessibility());
-        LinearLayout awakeCard = access; gap(awakeCard,12);
-        awake = new android.widget.Switch(this); awake.setText("Jaga layar menyala");
-        awake.setTextColor(NAVY); awake.setTextSize(14); awake.setMinHeight(dp(48));
-        awake.setChecked(prefs.getBoolean("keep_screen", true)); awakeCard.addView(awake);
+        LinearLayout access = group(settings, "Akses & layar");
+        connection = row(access, R.drawable.ic_access, "Aksesibilitas", "Memeriksa…", false, v -> explainAccessibility());
+        awake = new android.widget.Switch(this); awake.setContentDescription("Jaga layar menyala");
+        awake.setThumbTintList(new android.content.res.ColorStateList(new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}}, new int[]{GREEN, Color.WHITE}));
+        awake.setTrackTintList(new android.content.res.ColorStateList(new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}}, new int[]{MufTheme.SOFT_GREEN, MufTheme.BORDER}));
+        awake.setChecked(prefs.getBoolean("keep_screen", true));
+        LinearLayout awakeRow = rowWithControl(access, R.drawable.ic_screen, "Jaga layar menyala", awake); awakeRow.setOnClickListener(v -> { if (awake.isEnabled()) awake.toggle(); });
         awake.setOnCheckedChangeListener((b, enabled) -> {
             if (running() && enabled != prefs.getBoolean("keep_screen", true)) { b.setChecked(prefs.getBoolean("keep_screen", true)); toast("Ubah setelah pemeriksaan selesai atau dijeda."); return; }
             prefs.edit().putBoolean("keep_screen", enabled).apply();
         });
-        gap(settings,14); LinearLayout mode=card(settings); mode.addView(text("Pemeriksaan",17,NAVY,true)); gap(mode,8); mode.addView(text("Mode pemeriksaan",12,MUTED,false));
-        modeButton=button(mode,"",false,v -> chooseMode()); updateModeLabel();
-        gap(settings,14);LinearLayout info=card(settings);
-        LinearLayout diagnosisHeader=new LinearLayout(this);diagnosisHeader.setGravity(Gravity.CENTER_VERTICAL);info.addView(diagnosisHeader);
-        diagnosisHeader.addView(text("Diagnosis",17,NAVY,true),new LinearLayout.LayoutParams(0,-2,1));
-        diagnosisChoice=text("Pilih sesi",13,GREEN,true);diagnosisChoice.setPadding(dp(12),dp(8),dp(12),dp(8));
-        diagnosisChoice.setBackground(MufTheme.touch(this,Color.WHITE,12,true));diagnosisHeader.addView(diagnosisChoice,new LinearLayout.LayoutParams(-2,-2));
-        diagnosisChoice.setMinHeight(dp(48));diagnosisChoice.setGravity(Gravity.CENTER);diagnosisChoice.setOnClickListener(v -> chooseDiagnosisSession());
-        LinearLayout diagActions=new LinearLayout(this); info.addView(diagActions);
-        Button viewDiag=button(diagActions, "Lihat", false, v -> loadDiagnosis(report -> showText("Diagnosis sesi", report)));
-        Button copyDiag=button(diagActions, "Salin", false, v -> loadDiagnosis(report -> {
+        groupFooter(settings, "Akses dipakai untuk mengisi nomor dan membaca hasil di Tokopedia. Layar dijaga hanya selama pemeriksaan.");
+        LinearLayout mode = group(settings, "Pemeriksaan");
+        modeButton = row(mode, R.drawable.ic_mode, "Mode pemeriksaan", "", false, v -> { if (modeButton.isEnabled()) chooseMode(); });
+        // 0.9.1: the row shows only its title on one line; the chosen mode appears in the dialog when tapped.
+        modeButton.setVisibility(View.GONE);
+        modeRow = (View) modeButton.getParent(); updateModeLabel();
+        LinearLayout info = group(settings, "Diagnosis");
+        diagnosisChoice = row(info, R.drawable.ic_session, "Sesi", "Pilih sesi", false, v -> chooseDiagnosisSession());
+        LinearLayout diagActions = iconActionRow(info);
+        iconAction(diagActions, R.drawable.ic_view, "Lihat diagnosis", v -> loadDiagnosis(report -> showText("Diagnosis sesi", report)));
+        iconAction(diagActions, R.drawable.ic_copy, "Salin diagnosis", v -> loadDiagnosis(report -> {
             ((ClipboardManager) getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnosis sesi MUF Checker", report));
             toast("Diagnosis sesi disalin tanpa nomor kontrak, nama, atau nominal.");
         }));
-        Button exportDiag=button(diagActions, "Ekspor", false, v -> exportDiagnosis());
-        for(Button b:new Button[]{viewDiag,copyDiag,exportDiag}){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.topMargin=dp(6);if(b!=exportDiag)lp.rightMargin=dp(8);b.setLayoutParams(lp);}
-        gap(settings,14); LinearLayout dataCard=card(settings); dataCard.addView(text("Data aplikasi",17,NAVY,true));
-        Button clear=button(dataCard,"Hapus seluruh sesi",false,v -> clearData()); clear.setTextColor(RED);
-        gap(settings, 24); TextView footer = text("MUF Checker · 0.8.6\n© Andika Pramudya 2026", 11, MUTED, false);
+        iconAction(diagActions, R.drawable.ic_export, "Ekspor diagnosis", v -> exportDiagnosis());
+        groupFooter(settings, "Diagnosis tidak memuat no. PK, nama, atau nominal.");
+        LinearLayout dataCard = group(settings, "Data aplikasi");
+        row(dataCard, R.drawable.ic_delete, "Hapus seluruh sesi", "", true, v -> clearData());
+        gap(settings, 24); TextView footer = text("MUF Checker · 0.9.1\n© Andika Pramudya 2026", 11, MUTED, false);
         footer.setGravity(Gravity.CENTER); settings.addView(footer);
 
-        navigation=new android.widget.FrameLayout(this);navigation.setBackground(bg(Color.WHITE,28,true));
-        navigationIndicator=new View(this);navigationIndicator.setBackground(bg(MufTheme.SOFT_GREEN,24,false));
+        // Floating pill bar: white 94%, hairline, soft ambient shadow, spring indicator.
+        navigation=new android.widget.FrameLayout(this);
+        GradientDrawable barShape=bg(Color.argb(240,255,255,255),999,false);barShape.setStroke(dp(1),MufTheme.BORDER);navigation.setBackground(barShape);
+        navigation.setElevation(dp(6));navigation.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+        if(android.os.Build.VERSION.SDK_INT>=28){navigation.setOutlineAmbientShadowColor(Color.argb(60,0,0,0));navigation.setOutlineSpotShadowColor(Color.argb(30,0,0,0));}
+        navigationIndicator=new View(this);navigationIndicator.setBackground(bg(MufTheme.ACCENT_FILL,999,false));
         android.widget.FrameLayout.LayoutParams indicatorLp=new android.widget.FrameLayout.LayoutParams(0,0);indicatorLp.topMargin=dp(4);navigation.addView(navigationIndicator,indicatorLp);
-        LinearLayout nav=new LinearLayout(this);navigationTabs=nav;nav.setPadding(dp(4),dp(4),dp(4),dp(4));navigation.addView(nav,new android.widget.FrameLayout.LayoutParams(-1,-2));
+        TabStrip nav=new TabStrip();navigationTabs=nav;nav.setPadding(dp(4),dp(4),dp(4),dp(4));navigation.addView(nav,new android.widget.FrameLayout.LayoutParams(-1,-2));
         navigation.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob) -> { if(r-l!=or-ol || b-t!=ob-ot)syncNavigation(false); });
-        for (int i = 0; i < 3; i++) { final int index = i; tabs[i] = text(new String[]{"Periksa", "Hasil", "Pengaturan"}[i], 12, MUTED, true);
-            android.graphics.drawable.Drawable icon=getDrawable(new int[]{R.drawable.ic_check,R.drawable.ic_results,R.drawable.ic_settings}[i]);
-            icon.setBounds(0,0,dp(24),dp(24)); tabs[i].setCompoundDrawables(null,icon,null,null); tabs[i].setCompoundDrawablePadding(dp(4));
-            tabs[i].setPadding(dp(4),dp(8),dp(4),dp(8));
-            tabs[i].setGravity(Gravity.CENTER); tabs[i].setMinHeight(dp(64)); tabs[i].setOnClickListener(v -> selectPage(index)); tabs[i].setBackground(MufTheme.touch(this,Color.TRANSPARENT,24,false));nav.addView(tabs[i],new LinearLayout.LayoutParams(0,-1,1)); }
-        LinearLayout.LayoutParams navLp=new LinearLayout.LayoutParams(-1,-2);navLp.setMargins(dp(20),dp(8),dp(20),dp(12));shell.addView(navigation,navLp);
+        String[] tabNames={"Periksa", "Hasil", "Pengaturan"}; int[] tabIconIds={R.drawable.ic_check,R.drawable.ic_results,R.drawable.ic_settings};
+        for (int i = 0; i < 3; i++) { final int index = i;
+            LinearLayout tab=column();tab.setGravity(Gravity.CENTER);tab.setMinimumHeight(dp(56));tab.setPadding(dp(4),dp(6),dp(4),dp(6));
+            tabIcons[i]=new android.widget.ImageView(this);tabIcons[i].setImageResource(tabIconIds[i]);tabIcons[i].setColorFilter(MUTED);
+            tab.addView(tabIcons[i],new LinearLayout.LayoutParams(dp(26),dp(26)));
+            tabLabels[i]=text(tabNames[i],11,MUTED,true);tabLabels[i].setLineSpacing(0,1f);tabLabels[i].setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams labelLp=new LinearLayout.LayoutParams(-2,-2);labelLp.topMargin=dp(2);tab.addView(tabLabels[i],labelLp);
+            tabIcons[i].setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);tabLabels[i].setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            tab.setFocusable(true);tab.setClickable(true);tabs[i]=tab;
+            tab.setOnClickListener(v -> { if (selectedPage != index) tick(v); selectPage(index); });
+            nav.addView(tab,new LinearLayout.LayoutParams(0,-1,1)); }
+        LinearLayout.LayoutParams navLp=new LinearLayout.LayoutParams(-1,-2);navLp.setMargins(dp(19),dp(8),dp(19),dp(15));shell.addView(navigation,navLp);
+        shell.setClipChildren(false);shell.setClipToPadding(false);
         setContentView(shell);shell.requestApplyInsets();navigation.post(() -> syncNavigation(false));
+    }
+    /** Focus ring of the contract field: a 1.5 dp stroke that fades in over 150 ms. Visual only. */
+    private void fadeStroke(GradientDrawable shape, int width, int to) {
+        Integer from = (Integer) contract.getTag(); int start = from == null ? MufTheme.FILL : from; contract.setTag(to);
+        if (!resumed || !MufTheme.motionOn() || start == to) { shape.setStroke(width, to); return; }
+        android.animation.ValueAnimator fade = android.animation.ValueAnimator.ofArgb(start, to); fade.setDuration(150); fade.setInterpolator(MufTheme.easeOut());
+        fade.addUpdateListener(a -> shape.setStroke(width, (int) a.getAnimatedValue())); fade.start();
+    }
+    /** Selection tick; Android applies the user's haptic setting, and nothing depends on it. */
+    private void tick(View view) { view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK); }
+    /** Grouped settings section: 13 sp header above an inset card whose rows supply their own padding. */
+    private LinearLayout group(LinearLayout parent, String header) {
+        if (parent.getChildCount() > 0) gap(parent, 20);
+        TextView title = text(header, 13, MUTED, false); title.setPadding(dp(16), 0, dp(16), dp(6));
+        if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true); parent.addView(title);
+        LinearLayout card = column(); card.setBackground(bg(MufTheme.SURFACE, MufTheme.R_CARD, false)); card.setClipToOutline(true);
+        parent.addView(card, new LinearLayout.LayoutParams(-1, -2)); return card;
+    }
+    private void groupFooter(LinearLayout parent, String value) {
+        TextView note = text(value, 12, MUTED, false); note.setPadding(dp(16), dp(6), dp(16), 0); parent.addView(note);
+    }
+    /** Row: 30 dp tinted glyph tile, 16 sp title, right-aligned 14 sp value; hairline inset from the text start. */
+    private TextView row(LinearLayout group, int icon, String title, String value, boolean danger, View.OnClickListener action) {
+        LinearLayout row = rowShell(group, icon, title, danger);
+        TextView valueView = text(value, 14, MUTED, false); valueView.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        valueView.setMaxWidth(dp(180)); row.addView(valueView, new LinearLayout.LayoutParams(-2, -2));
+        row.setOnClickListener(action); return valueView;
+    }
+    /** One row of equal icon-only buttons inside a grouped card; hairline inset like the other rows. */
+    private LinearLayout iconActionRow(LinearLayout group) {
+        if (group.getChildCount() > 0) { View line = new View(this); line.setBackgroundColor(MufTheme.BORDER);
+            LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(-1, dp(1)); lineLp.leftMargin = dp(58); group.addView(line, lineLp); }
+        LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(4), dp(12), dp(4)); group.addView(row, new LinearLayout.LayoutParams(-1, -2)); return row;
+    }
+    /** Icon-only action: 48 dp touch target, 36 dp tinted pill, label exposed as content description and tooltip. */
+    private View iconAction(LinearLayout row, int icon, String label, View.OnClickListener action) {
+        android.widget.FrameLayout button = new android.widget.FrameLayout(this);
+        android.graphics.drawable.InsetDrawable pill = new android.graphics.drawable.InsetDrawable(bg(MufTheme.SOFT_GREEN, 10, false), dp(4), dp(6), dp(4), dp(6));
+        android.graphics.drawable.InsetDrawable mask = new android.graphics.drawable.InsetDrawable(bg(Color.BLACK, 10, false), dp(4), dp(6), dp(4), dp(6));
+        button.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x0A000000), pill, mask)); button.setFocusable(true); button.setClickable(true);
+        button.setContentDescription(label); button.setTooltipText(label);
+        android.widget.ImageView glyph = new android.widget.ImageView(this); glyph.setImageResource(icon); glyph.setColorFilter(GREEN);
+        glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        button.addView(glyph, new android.widget.FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER));
+        button.setOnClickListener(action); MufTheme.pressable(button);
+        row.addView(button, new LinearLayout.LayoutParams(0, dp(48), 1)); return button;
+    }
+    private LinearLayout rowWithControl(LinearLayout group, int icon, String title, View control) {
+        LinearLayout row = rowShell(group, icon, title, false); row.addView(control, new LinearLayout.LayoutParams(-2, -2)); return row;
+    }
+    private LinearLayout rowShell(LinearLayout group, int icon, String title, boolean danger) {
+        if (group.getChildCount() > 0) { View line = new View(this); line.setBackgroundColor(MufTheme.BORDER);
+            LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(-1, dp(1)); lineLp.leftMargin = dp(58); group.addView(line, lineLp); }
+        LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setMinimumHeight(dp(56));
+        row.setPadding(dp(16), dp(8), dp(16), dp(8)); row.setBackground(MufTheme.touch(this, Color.TRANSPARENT, 0, false)); row.setFocusable(true); row.setClickable(true);
+        android.widget.FrameLayout tile = new android.widget.FrameLayout(this); tile.setBackground(bg(danger ? MufTheme.SOFT_RED : MufTheme.SOFT_GREEN, 8, false));
+        android.widget.ImageView glyph = new android.widget.ImageView(this); glyph.setImageResource(icon); glyph.setColorFilter(danger ? RED : GREEN);
+        tile.addView(glyph, new android.widget.FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
+        tile.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        row.addView(tile, new LinearLayout.LayoutParams(dp(30), dp(30)));
+        TextView label = text(title, 16, danger ? RED : NAVY, false); label.setLineSpacing(dp(2), 1f);
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(0, -2, 1); labelLp.leftMargin = dp(12); labelLp.rightMargin = dp(8);
+        row.addView(label, labelLp); group.addView(row, new LinearLayout.LayoutParams(-1, -2)); MufTheme.pressable(row); return row;
     }
     /** Counts up from the last shown value once per change; otherwise sets the number directly. */
     private void setCount(TextView view, int value, boolean animate) {
@@ -381,7 +481,9 @@ public final class MainActivity extends Activity {
         countAnimators.clear();
         if (progressAnimator != null) progressAnimator.end();
         for (android.animation.ValueAnimator tint : tabTints) if (tint != null) tint.end();
-        if (navigationIndicator != null) navigationIndicator.animate().cancel();
+        if (indicatorMotion != null) indicatorMotion.end();
+        if (filterControl != null) filterControl.settle();
+        for (int i = 0; i < tabIcons.length; i++) if (tabIcons[i] != null) { tabIcons[i].animate().cancel(); float scale = i == selectedPage ? 1.08f : 1f; tabIcons[i].setScaleX(scale); tabIcons[i].setScaleY(scale); }
     }
     private TextWatcher watcher(Runnable changed) { return new TextWatcher() {
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -396,7 +498,7 @@ public final class MainActivity extends Activity {
         if (changed) ((android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(contract.getWindowToken(), 0);
         for (int i = 0; i < 3; i++) { pages[i].animate().cancel(); pages[i].setAlpha(1f); pages[i].setTranslationY(0);
             pages[i].setVisibility(i == selectedPage || fade && i == previous ? View.VISIBLE : View.GONE);
-            tabs[i].setSelected(i == selectedPage); tabs[i].setContentDescription(tabs[i].getText() + (i == selectedPage ? ", dipilih" : ""));
+            tabs[i].setSelected(i == selectedPage); tabs[i].setContentDescription(tabLabels[i].getText() + (i == selectedPage ? ", dipilih" : ""));
             tintTab(i, i == selectedPage ? GREEN : MUTED, changed && resumed && MufTheme.motionOn()); }
         syncNavigation(changed);
         if (selectedPage == 1 && tableDirty) renderTable();
@@ -411,30 +513,115 @@ public final class MainActivity extends Activity {
         }
     }
     private final android.animation.ValueAnimator[] tabTints = new android.animation.ValueAnimator[3];
-    /** Label and icon cross-fade between muted and accent; the indicator carries the movement. */
+    /** Label and icon tint tween (200 ms); the selected icon grows to 1.08 on the spring. */
     private void tintTab(int index, int color, boolean animate) {
-        TextView tab = tabs[index]; if (tab == null) return;
+        TextView label = tabLabels[index]; android.widget.ImageView icon = tabIcons[index]; if (label == null) return;
         if (tabTints[index] != null) { tabTints[index].cancel(); tabTints[index] = null; }
-        int from = tab.getCurrentTextColor();
-        if (!animate || from == color) { tab.setTextColor(color); tab.getCompoundDrawables()[1].setTint(color); return; }
+        float scale = color == GREEN ? 1.08f : 1f; icon.animate().cancel();
+        label.setTypeface(Typeface.create(color == GREEN ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
+        int from = label.getCurrentTextColor();
+        if (!animate) { label.setTextColor(color); icon.setColorFilter(color); icon.setScaleX(scale); icon.setScaleY(scale); return; }
+        icon.animate().scaleX(scale).scaleY(scale).setDuration(MufTheme.MOTION_SPRING).setInterpolator(MufTheme.spring()).start();
+        if (from == color) return;
         android.animation.ValueAnimator tint = android.animation.ValueAnimator.ofArgb(from, color);
-        tint.setDuration(MufTheme.MOTION_ENTER); tint.setInterpolator(MufTheme.easeOut());
+        tint.setDuration(MufTheme.MOTION_QUICK); tint.setInterpolator(MufTheme.move());
         // Cancelling keeps the in-between colour, so a quick second tap continues from what is on screen.
-        tint.addUpdateListener(a -> { int c = (int) a.getAnimatedValue(); tab.setTextColor(c); tab.getCompoundDrawables()[1].setTint(c); });
+        tint.addUpdateListener(a -> { int c = (int) a.getAnimatedValue(); label.setTextColor(c); icon.setColorFilter(c); });
         tabTints[index] = tint; tint.start();
     }
+    private android.animation.ValueAnimator indicatorMotion;
     /** Purely visual selection movement; never schedules queue work. */
-    private void syncNavigation(boolean animate) {
-        if(navigation==null || navigationTabs==null)return;
-        boolean moving=animate && resumed && android.animation.ValueAnimator.areAnimatorsEnabled();
-        for(int i=0;i<tabs.length;i++)if(tabs[i]!=null){tabs[i].setScaleX(1f);tabs[i].setScaleY(1f);}
-        if(navigationTabs.getWidth()==0 || tabs[selectedPage].getWidth()==0)return;
+    private void syncNavigation(boolean animate) { moveIndicator(selectedPage, animate); }
+    /**
+     * Indicator travels on the spring and stretches with its travel lag (wider, slightly flatter mid-move),
+     * returning to 1 at rest. Snaps when animations are off, before layout, or while paused.
+     */
+    private void moveIndicator(int index, boolean animate) {
+        if(navigation==null || navigationTabs==null || tabs[index]==null)return;
+        if(navigationTabs.getWidth()==0 || tabs[index].getWidth()==0)return;
         android.widget.FrameLayout.LayoutParams lp=(android.widget.FrameLayout.LayoutParams)navigationIndicator.getLayoutParams();
-        int width=tabs[selectedPage].getWidth(),height=navigationTabs.getHeight()-dp(8);
+        int width=tabs[index].getWidth(),height=navigationTabs.getHeight()-dp(8);
         if(lp.width!=width || lp.height!=height){lp.width=width;lp.height=height;navigationIndicator.setLayoutParams(lp);}
-        float target=tabs[selectedPage].getLeft();navigationIndicator.animate().cancel();
-        if(moving)navigationIndicator.animate().translationX(target).setStartDelay(0).setDuration(MufTheme.MOTION_MOVE).setInterpolator(MufTheme.move()).withLayer().start();
-        else navigationIndicator.setTranslationX(target);
+        final float target=tabs[index].getLeft(), from=navigationIndicator.getTranslationX();
+        if(indicatorMotion!=null){indicatorMotion.cancel();indicatorMotion=null;}
+        if(!animate || !resumed || !MufTheme.motionOn() || from==target){
+            navigationIndicator.setTranslationX(target);navigationIndicator.setScaleX(1f);navigationIndicator.setScaleY(1f);return;
+        }
+        final float tabsTravelled=Math.abs(target-from)/Math.max(1,width);
+        final android.animation.ValueAnimator travel=android.animation.ValueAnimator.ofFloat(0f,1f);
+        travel.setDuration(MufTheme.MOTION_SPRING);travel.setInterpolator(new android.view.animation.LinearInterpolator());
+        travel.addUpdateListener(a -> {
+            float f=a.getAnimatedFraction(),lag=UiPresentation.travelLag(f,tabsTravelled);
+            navigationIndicator.setTranslationX(from+(target-from)*UiPresentation.spring(f));
+            navigationIndicator.setScaleX(UiPresentation.stretchX(lag));navigationIndicator.setScaleY(UiPresentation.stretchY(lag));
+        });
+        travel.addListener(new android.animation.AnimatorListenerAdapter(){
+            @Override public void onAnimationEnd(android.animation.Animator a){navigationIndicator.setTranslationX(target);navigationIndicator.setScaleX(1f);navigationIndicator.setScaleY(1f);}
+        });
+        indicatorMotion=travel;travel.start();
+    }
+    /** Tab row that turns a horizontal drag into a hovered tab (a tick per crossing) and selects it on release. Taps still go to the tabs. */
+    private final class TabStrip extends LinearLayout {
+        private final int slop=android.view.ViewConfiguration.get(MainActivity.this).getScaledTouchSlop();
+        private float downX; private boolean dragging; private int hovered;
+        TabStrip(){super(MainActivity.this);}
+        private int at(float x){return UiPresentation.segmentAt(x-getPaddingLeft(),getWidth()-getPaddingLeft()-getPaddingRight(),getChildCount());}
+        @Override public boolean onInterceptTouchEvent(android.view.MotionEvent e){
+            switch(e.getActionMasked()){
+                case android.view.MotionEvent.ACTION_DOWN: downX=e.getX();dragging=false;return false;
+                case android.view.MotionEvent.ACTION_MOVE:
+                    if(!dragging && Math.abs(e.getX()-downX)>slop){dragging=true;hovered=selectedPage;getParent().requestDisallowInterceptTouchEvent(true);}
+                    return dragging;
+                default: return false;
+            }
+        }
+        @Override public boolean onTouchEvent(android.view.MotionEvent e){
+            if(!dragging)return super.onTouchEvent(e);
+            int action=e.getActionMasked();
+            if(action==android.view.MotionEvent.ACTION_MOVE){int index=at(e.getX());if(index!=hovered){hovered=index;tick(this);moveIndicator(index,true);}}
+            else if(action==android.view.MotionEvent.ACTION_UP){dragging=false;if(hovered==selectedPage)moveIndicator(selectedPage,true);else selectPage(hovered);}
+            else if(action==android.view.MotionEvent.ACTION_CANCEL){dragging=false;moveIndicator(selectedPage,true);}
+            return true;
+        }
+    }
+    interface Choice { void chosen(String value); }
+    /** Segmented filter: soft track, white thumb sliding on the spring; the selected label is medium weight. */
+    private final class Segmented extends android.widget.FrameLayout {
+        final String[] values; final TextView[] items; final View thumb; final LinearLayout row; private int selected; private android.animation.ValueAnimator slide;
+        Segmented(String[] values, Choice choice) {
+            super(MainActivity.this); this.values=values; items=new TextView[values.length];
+            setBackground(bg(MufTheme.FILL,MufTheme.R_CONTROL,false)); setPadding(dp(3),dp(3),dp(3),dp(3)); setClipToPadding(false); setClipChildren(false);
+            thumb=new View(MainActivity.this); thumb.setBackground(bg(Color.WHITE,10,false)); thumb.setElevation(dp(2));
+            thumb.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+            if(android.os.Build.VERSION.SDK_INT>=28){thumb.setOutlineAmbientShadowColor(Color.argb(50,0,0,0));thumb.setOutlineSpotShadowColor(Color.argb(40,0,0,0));}
+            addView(thumb,new LayoutParams(0,0));
+            row=new LinearLayout(MainActivity.this); row.setTranslationZ(dp(3)); addView(row,new LayoutParams(-1,-2)); // labels above the thumb
+            for(int i=0;i<values.length;i++){ final int index=i;
+                TextView item=text(values[i],13,NAVY,false); item.setGravity(Gravity.CENTER); item.setMinHeight(dp(42)); item.setLineSpacing(0,1f);
+                item.setPadding(dp(4),dp(4),dp(4),dp(4)); item.setTranslationZ(dp(3)); items[i]=item;
+                item.setOnClickListener(v -> { if(index!=selected){tick(v);} select(values[index],true); choice.chosen(values[index]); });
+                row.addView(item,new LinearLayout.LayoutParams(0,-1,1)); }
+        }
+        void select(String value, boolean animate) {
+            int index=java.util.Arrays.asList(values).indexOf(value); if(index<0)index=0; selected=index;
+            for(int i=0;i<items.length;i++){boolean chosen=i==index; items[i].setSelected(chosen);
+                items[i].setTypeface(Typeface.create(chosen?"sans-serif-medium":"sans-serif",Typeface.NORMAL));
+                items[i].setContentDescription("Filter "+values[i]+(chosen?", dipilih":""));}
+            place(animate && resumed && MufTheme.motionOn());
+        }
+        private void place(boolean animate) {
+            int width=row.getWidth()/Math.max(1,items.length); if(width==0)return;
+            LayoutParams lp=(LayoutParams)thumb.getLayoutParams();
+            if(lp.width!=width || lp.height!=row.getHeight()){lp.width=width;lp.height=row.getHeight();thumb.setLayoutParams(lp);}
+            final float target=selected*width, from=thumb.getTranslationX();
+            if(slide!=null){slide.cancel();slide=null;}
+            if(!animate || from==target){thumb.setTranslationX(target);return;}
+            slide=android.animation.ValueAnimator.ofFloat(0f,1f); slide.setDuration(MufTheme.MOTION_SPRING); slide.setInterpolator(new android.view.animation.LinearInterpolator());
+            slide.addUpdateListener(a -> thumb.setTranslationX(from+(target-from)*UiPresentation.spring(a.getAnimatedFraction())));
+            slide.start();
+        }
+        void settle(){ if(slide!=null)slide.end(); }
+        @Override protected void onLayout(boolean changed,int l,int t,int r,int b){ super.onLayout(changed,l,t,r,b); if(changed) post(() -> place(false)); }
     }
     private void countInput() {
         LinkedHashSet<String> valid = new LinkedHashSet<>(); int duplicate = 0, invalid = 0;
@@ -502,14 +689,15 @@ public final class MainActivity extends Activity {
             boolean preparing = service() != null && service().isPreparing();
             start.setEnabled(!active && !pending && !busy); start.setAlpha(start.isEnabled() ? 1f : .5f);
             contract.setEnabled(!active && !pending && !busy); periodButton.setEnabled(!active && !pending && !busy);
-            modeButton.setEnabled(!active && !pending && !busy); awake.setEnabled(!active);
+            modeButton.setEnabled(!active && !pending && !busy); modeRow.setEnabled(modeButton.isEnabled()); modeRow.setAlpha(modeButton.isEnabled() ? 1f : .5f);
+            awake.setEnabled(!active);
             pause.setVisibility(active && !preparing ? View.VISIBLE : View.GONE); pause.setEnabled(queue == null || !queue.pauseRequested());
             stop.setText(preparing ? "Batalkan persiapan" : "STOP sekarang");
             stop.setVisibility(active ? View.VISIBLE : View.GONE); resume.setVisibility(!active && pending ? View.VISIBLE : View.GONE);
             resume.setText(queue != null && queue.startMode() == BulkQueue.StartMode.READY_PAGE ? "Siapkan ulang panel Mulai" : "Lanjutkan antrean");
             updateRetryVisibility();
-            connection.setText(service() != null ? "● Aksesibilitas tersambung" : "○ Aksesibilitas belum tersambung");
-            connection.setTextColor(service() != null ? GREEN : AMBER);
+            connection.setText(service() != null ? "Tersambung" : "Belum tersambung");
+            connection.setTextColor(service() != null ? GREEN : NAVY);
             state.setText(preparing ? "Menunggu Mulai di Tokopedia" : queue==null ? "Belum ada pemeriksaan" : !active && pending ? (queue.state() == BulkQueue.RunState.STOPPED ? "Pemeriksaan dihentikan" : "Antrean dijeda")
                 : !active && queue != null && queue.state() == BulkQueue.RunState.COMPLETED ? "Pemeriksaan selesai"
                 : prefs.getString("progress_short", "Siap memeriksa"));
@@ -562,8 +750,8 @@ public final class MainActivity extends Activity {
         boolean countUp = countKey.equals(countSession) && selectedPage == 1 && resumed && MufTheme.motionOn();
         countSession = countKey;
         setCount(paidCount, paid, countUp); setCount(unpaidCount, unpaid, countUp); setCount(errorCount, viewQueue==null?0:viewQueue.errorCount(), countUp);
-        diagnosisChoice.setText("Pilih sesi");
-        diagnosisChoice.setContentDescription(viewQueue==null?"Pilih sesi diagnosis":"Pilih sesi diagnosis, terpilih " + when);
+        diagnosisChoice.setText(viewQueue==null?"Pilih sesi":when);
+        ((View) diagnosisChoice.getParent()).setContentDescription(viewQueue==null?"Sesi diagnosis, pilih sesi":"Sesi diagnosis, terpilih " + when + ", ketuk untuk mengganti");
         updateRetryVisibility();
         String nextTableKey = counted == null ? UiPresentation.tableKey(null) : counted.tableKey;
         if (!nextTableKey.equals(tableKey)) { tableKey = nextTableKey; tableDirty=true; if(selectedPage==1)renderTable(); }
@@ -707,6 +895,7 @@ public final class MainActivity extends Activity {
             if (generation != renderGeneration) return;
             // ListView reuses visible rows, keeps its scroll anchor, and never fades the entire list.
             measureTableColumns(items);
+            if (filterControl != null && !chosenFilter.equals(filterControl.values[filterControl.selected])) filterControl.select(chosenFilter, false);
             resultAdapter.items = items; resultAdapter.notifyDataSetChanged();
             empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);tableHeading.setVisibility(items.isEmpty()?View.GONE:View.VISIBLE);
             empty.setText(snapshot == null ? "Belum ada hasil. Siapkan pemeriksaan di tab Periksa." : "Tidak ada hasil yang sesuai pencarian atau filter.");
@@ -731,9 +920,11 @@ public final class MainActivity extends Activity {
         int[] next=new int[4];
         for(int i=0;i<4;i++)next[i]=(int)Math.ceil(labels[i].getPaint().measureText(titles[i]))+dp(24);
         next[1]=Math.max(next[1],dp(136));next[2]=Math.max(next[2],dp(180));next[3]=Math.max(next[3],dp(72));
+        // Header captions are smaller than cells, so values are measured with a body row's paints.
+        TextView[] cellsPaint={measureRow.ordinal,measureRow.number,measureRow.name,measureRow.badge};
         for(ResultItem item:items){
             String[] values={Integer.toString(item.ordinal),item.source.contract,item.name,UiPresentation.tableStatusLabel(item.status)};
-            for(int i=0;i<4;i++)next[i]=Math.max(next[i],(int)Math.ceil(labels[i].getPaint().measureText(values[i]))+dp(24));
+            for(int i=0;i<4;i++)next[i]=Math.max(next[i],(int)Math.ceil(cellsPaint[i].getPaint().measureText(values[i]))+dp(24));
         }
         if(!java.util.Arrays.equals(tableColumns,next)){
             System.arraycopy(next,0,tableColumns,0,4);tableHeading.requestLayout();
@@ -763,7 +954,7 @@ public final class MainActivity extends Activity {
             setHorizontalScrollBarEnabled(heading);setOverScrollMode(View.OVER_SCROLL_NEVER);
             setClipToPadding(true);cells=new Cells();addView(cells,new android.widget.FrameLayout.LayoutParams(-2,-2));
             setMinimumHeight(dp(heading?40:56));
-            cells.setBackground(heading?bg(MufTheme.SOFT_NEUTRAL,0,false):MufTheme.touch(MainActivity.this,Color.WHITE,0,false));
+            cells.setBackground(heading?bg(MufTheme.SURFACE,0,false):MufTheme.touch(MainActivity.this,Color.WHITE,0,false));
             for(TextView child:new TextView[]{ordinal,number,name,badge}) {
                 child.setPadding(dp(12),dp(10),dp(12),dp(10));child.setGravity(Gravity.CENTER_VERTICAL);
                 child.setSingleLine(true);child.setEllipsize(null);
@@ -772,7 +963,9 @@ public final class MainActivity extends Activity {
             ordinal.setGravity(Gravity.CENTER);badge.setGravity(Gravity.CENTER);
             cells.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             if(heading){ordinal.setText("No");number.setText("Kontrak");name.setText("Nama");badge.setText("Status");
-                name.setTextColor(NAVY);if(android.os.Build.VERSION.SDK_INT>=28)setAccessibilityHeading(true);setContentDescription("Kolom No, Kontrak, Nama, Status");}
+                for(TextView t:new TextView[]{ordinal,number,name,badge}){t.setTextSize(11);t.setTextColor(MUTED);t.setLetterSpacing(.02f);
+                    t.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));}
+                if(android.os.Build.VERSION.SDK_INT>=28)setAccessibilityHeading(true);setContentDescription("Kolom No, Kontrak, Nama, Status");}
             else {
                 setOnClickListener(v -> {if(data!=null)showRow(data.source,data.sessionId);});
                 cells.setOnClickListener(v -> performClick());
@@ -827,9 +1020,7 @@ public final class MainActivity extends Activity {
             }
             @Override protected void dispatchDraw(android.graphics.Canvas canvas){
                 super.dispatchDraw(canvas);int x=0;float half=grid.getStrokeWidth()/2;
-                canvas.drawLine(half,0,half,getHeight(),grid);
-                for(int i=0;i<4;i++){x+=widths[i];canvas.drawLine(Math.min(x,getWidth()-half),0,Math.min(x,getWidth()-half),getHeight(),grid);}
-                if(heading)canvas.drawLine(0,half,getWidth(),half,grid);
+                // Hairline separators between rows only; columns are carried by alignment and padding.
                 canvas.drawLine(0,getHeight()-half,getWidth(),getHeight()-half,grid);
             }
         }
@@ -866,12 +1057,12 @@ public final class MainActivity extends Activity {
         },data -> presentRow(row,sessionId,data),error -> toast("Rincian belum dapat dibaca."));
     }
     private void presentRow(BulkQueue.Row row,String sessionId,RowDetails data) {
-        ScrollView scroll=new ScrollView(this);LinearLayout content=column();content.setPadding(dp(20),dp(8),dp(20),dp(8));scroll.addView(content);
+        LinearLayout content=column();content.setPadding(dp(20),dp(4),dp(20),dp(8));
         String stateLabel=status(row);boolean failed="ERROR".equals(stateLabel),paid="SUDAH BAYAR".equals(stateLabel);
-        TextView statusChip=text(UiPresentation.statusLabel(stateLabel),13,failed?RED:paid?GREEN:NAVY,true);
-        statusChip.setPadding(dp(12),dp(8),dp(12),dp(8));statusChip.setBackground(bg(failed?MufTheme.SOFT_RED:paid?MufTheme.SOFT_GREEN:MufTheme.SOFT_NEUTRAL,10,false));
+        TextView statusChip=text(UiPresentation.statusLabel(stateLabel),13,failed?RED:paid?GREEN:NAVY,true);statusChip.setLineSpacing(0,1f);
+        statusChip.setPadding(dp(12),dp(6),dp(12),dp(6));statusChip.setBackground(bg(failed?MufTheme.SOFT_RED:paid?MufTheme.SOFT_GREEN:MufTheme.FILL,999,false));
         content.addView(statusChip,new LinearLayout.LayoutParams(-2,-2));gap(content,12);
-        LinearLayout identity=column();identity.setPadding(dp(12),dp(12),dp(12),dp(12));identity.setBackground(bg(BACK,12,false));content.addView(identity);
+        LinearLayout identity=column();identity.setPadding(dp(12),dp(12),dp(12),dp(12));identity.setBackground(bg(MufTheme.SURFACE,MufTheme.R_CONTROL,false));content.addView(identity);
         detailValue(identity,"Kontrak",row.contract);
         if(!data.name.isEmpty()){gap(identity,10);detailValue(identity,"Nama",data.name);}
         if(data.verified){
@@ -880,15 +1071,117 @@ public final class MainActivity extends Activity {
             gap(content,12);detailPair(content,"Angsuran",data.amount,"Cicilan ke",data.installment);
         }
         if(!data.note.isEmpty()){
-            gap(content,12);LinearLayout note=column();note.setPadding(dp(12),dp(10),dp(12),dp(10));note.setBackground(bg(failed?MufTheme.SOFT_RED:BACK,12,false));content.addView(note);
+            gap(content,12);LinearLayout note=column();note.setPadding(dp(12),dp(10),dp(12),dp(10));note.setBackground(bg(failed?MufTheme.SOFT_RED:MufTheme.SURFACE,MufTheme.R_CONTROL,false));content.addView(note);
             note.addView(text("Catatan pemeriksaan",11,failed?RED:MUTED,true));
             TextView reason=text(data.note,13,NAVY,false);reason.setTextIsSelectable(true);note.addView(reason);
         }
-        TextView title=text("Rincian kontrak",18,NAVY,true);title.setPadding(dp(20),dp(18),dp(20),dp(8));
-        if(android.os.Build.VERSION.SDK_INT>=28)title.setAccessibilityHeading(true);
-        showDialog(new AlertDialog.Builder(this).setCustomTitle(title).setView(scroll).setPositiveButton("Tutup", null)
-            .setNeutralButton("Diagnosis", (d, w) -> repository.submit(database -> database.rowDiagnostic(sessionId, row.contract), diagnostic ->
-                showText("Diagnosis lokal", diagnostic.isEmpty() ? "Diagnosis tersedia setelah percobaan kontrak ini selesai atau dihentikan." : diagnostic), e -> toast("Diagnosis belum dapat dibaca."))));
+        presentSheet("Rincian kontrak",content,"Diagnosis",() -> repository.submit(database -> database.rowDiagnostic(sessionId, row.contract), diagnostic ->
+            showText("Diagnosis lokal", diagnostic.isEmpty() ? "Diagnosis tersedia setelah percobaan kontrak ini selesai atau dihentikan." : diagnostic), e -> toast("Diagnosis belum dapat dibaca.")));
+    }
+    /**
+     * Bottom sheet: full width, 24 dp top corners, grab handle, scrollable body capped at 85% of the window.
+     * Enters on the spring with a 200 ms scrim fade; leaves downward in 200 ms. Drag past 25% or fling down to close.
+     * Blur behind is used only where Android enables cross-window blur (API 31+); elsewhere a plain dim.
+     */
+    private void presentSheet(String title,View body,String secondaryLabel,Runnable secondary) {
+        if(isFinishing()||isDestroyed())return;
+        final android.app.Dialog dialog=new android.app.Dialog(this,android.R.style.Theme_Translucent_NoTitleBar);
+        final android.widget.FrameLayout root=new android.widget.FrameLayout(this);
+        final View scrim=new View(this);scrim.setBackgroundColor(Color.BLACK);scrim.setAlpha(0f);root.addView(scrim,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        final SheetLayout sheet=new SheetLayout();
+        float r=dp(MufTheme.R_SHEET);GradientDrawable surface=new GradientDrawable();surface.setColor(Color.WHITE);surface.setCornerRadii(new float[]{r,r,r,r,0,0,0,0});
+        sheet.setBackground(surface);sheet.setElevation(dp(8));sheet.setClickable(true);
+        LinearLayout top=column();top.setGravity(Gravity.CENTER_HORIZONTAL);
+        View handle=new View(this);handle.setBackground(bg(Color.rgb(199,199,204),999,false));
+        LinearLayout.LayoutParams handleLp=new LinearLayout.LayoutParams(dp(36),dp(4));handleLp.topMargin=dp(10);handleLp.bottomMargin=dp(6);top.addView(handle,handleLp);
+        TextView heading=text(title,18,NAVY,true);heading.setPadding(dp(20),dp(4),dp(20),dp(12));
+        if(android.os.Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
+        top.addView(heading,new LinearLayout.LayoutParams(-1,-2));
+        ScrollView scroll=new ScrollView(this);scroll.addView(body);
+        DialogActions actions=new DialogActions();android.widget.FrameLayout actionBar=new android.widget.FrameLayout(this);actionBar.setPadding(dp(20),dp(8),dp(20),dp(12));actionBar.addView(actions,new android.widget.FrameLayout.LayoutParams(-1,-2));
+        final boolean[] closing={false};
+        final Runnable close=() -> {
+            if(closing[0])return;closing[0]=true;
+            if(!MufTheme.motionOn()||sheet.getHeight()==0){dialog.dismiss();return;}
+            scrim.animate().alpha(0f).setDuration(200).setInterpolator(MufTheme.easeIn()).start();
+            sheet.animate().translationY(sheet.getHeight()).setDuration(200).setInterpolator(MufTheme.easeIn()).withEndAction(dialog::dismiss).start();
+        };
+        if(secondary!=null){Button extra=sheetButton(secondaryLabel,false);extra.setOnClickListener(v -> secondary.run());actions.addView(extra);}
+        Button done=sheetButton("Tutup",true);done.setOnClickListener(v -> close.run());actions.addView(done);
+        sheet.addView(top);sheet.addView(scroll);sheet.addView(actionBar);
+        root.addView(sheet,new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM));
+        scrim.setOnClickListener(v -> close.run());
+        root.setOnApplyWindowInsetsListener((v,insets) -> {
+            // Scrim spans the whole screen; only the sheet keeps clear of the side and navigation insets.
+            ((android.widget.FrameLayout.LayoutParams)sheet.getLayoutParams()).setMargins(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),0);
+            sheet.setPadding(0,0,0,insets.getSystemWindowInsetBottom());return insets;});
+        // Drag down on the handle/title area; release decides between closing and springing back.
+        top.setOnTouchListener(new View.OnTouchListener(){
+            float downY;android.view.VelocityTracker velocity;
+            @Override public boolean onTouch(View v,android.view.MotionEvent e){
+                switch(e.getActionMasked()){
+                    case android.view.MotionEvent.ACTION_DOWN: downY=e.getRawY();velocity=android.view.VelocityTracker.obtain();velocity.addMovement(e);sheet.animate().cancel();return true;
+                    case android.view.MotionEvent.ACTION_MOVE: if(velocity!=null)velocity.addMovement(e);sheet.setTranslationY(Math.max(0f,e.getRawY()-downY));return true;
+                    case android.view.MotionEvent.ACTION_UP: case android.view.MotionEvent.ACTION_CANCEL:
+                        float speed=0f;if(velocity!=null){velocity.addMovement(e);velocity.computeCurrentVelocity(1000);speed=velocity.getYVelocity();velocity.recycle();velocity=null;}
+                        if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP && UiPresentation.dismissSheet(sheet.getTranslationY(),sheet.getHeight(),speed,getResources().getDisplayMetrics().density))close.run();
+                        else if(MufTheme.motionOn())sheet.animate().translationY(0).setDuration(MufTheme.MOTION_SPRING).setInterpolator(MufTheme.spring()).start();
+                        else sheet.setTranslationY(0);
+                        return true;
+                    default: return false;
+                }
+            }
+        });
+        dialog.setContentView(root);
+        dialog.setOnKeyListener((d,code,event) -> { if(code==android.view.KeyEvent.KEYCODE_BACK){ if(event.getAction()==android.view.KeyEvent.ACTION_UP)close.run(); return true; } return false; });
+        android.view.Window window=dialog.getWindow();
+        float dim=.32f;
+        if(window!=null){
+            window.setLayout(-1,-1);window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));window.setWindowAnimations(0);
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            // Draw behind the system bars: the scrim covers the status bar and the sheet continues under a white navigation bar.
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(Color.TRANSPARENT);window.setNavigationBarColor(Color.WHITE);
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                |View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+            if(blurAvailable()){window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                android.view.WindowManager.LayoutParams attributes=window.getAttributes();attributes.setBlurBehindRadius(dp(24));window.setAttributes(attributes);dim=.2f;}
+        }
+        final float scrimTarget=dim;
+        dialog.show();
+        if(MufTheme.motionOn()){
+            sheet.setVisibility(View.INVISIBLE);
+            sheet.post(() -> { sheet.setTranslationY(sheet.getHeight());sheet.setVisibility(View.VISIBLE);
+                sheet.animate().translationY(0).setDuration(MufTheme.MOTION_SPRING).setInterpolator(MufTheme.spring()).start();
+                scrim.animate().alpha(scrimTarget).setDuration(200).setInterpolator(MufTheme.easeOut()).start(); });
+        } else scrim.setAlpha(scrimTarget);
+    }
+    private boolean blurAvailable() {
+        return android.os.Build.VERSION.SDK_INT>=31 && getWindowManager().isCrossWindowBlurEnabled();
+    }
+    private Button sheetButton(String label,boolean primary) {
+        Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(14);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
+        b.setMinHeight(dp(48));b.setMinimumHeight(dp(48));b.setMinWidth(dp(48));b.setMinimumWidth(dp(48));b.setPadding(dp(18),dp(10),dp(18),dp(10));
+        MufTheme.flatten(b);b.setTextColor(primary?Color.WHITE:GREEN);
+        b.setBackground(primary?MufTheme.touch(this,GREEN,MufTheme.R_CONTROL,false):MufTheme.touch(this,Color.TRANSPARENT,MufTheme.R_CONTROL,false));
+        MufTheme.pressable(b);return b;
+    }
+    /** Header, body and actions; the body scrolls so the whole sheet stays within 85% of the window height. */
+    private final class SheetLayout extends android.view.ViewGroup {
+        SheetLayout(){super(MainActivity.this);}
+        @Override protected void onMeasure(int widthSpec,int heightSpec){
+            int width=MeasureSpec.getSize(widthSpec),available=MeasureSpec.getSize(heightSpec);
+            int cap=(int)((available>0?available:getResources().getDisplayMetrics().heightPixels)*.85f)-getPaddingBottom();
+            View top=getChildAt(0),body=getChildAt(1),actions=getChildAt(2);
+            int exact=MeasureSpec.makeMeasureSpec(width,MeasureSpec.EXACTLY),free=MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED);
+            top.measure(exact,free);actions.measure(exact,free);
+            int room=Math.max(dp(96),cap-top.getMeasuredHeight()-actions.getMeasuredHeight());
+            body.measure(exact,MeasureSpec.makeMeasureSpec(room,MeasureSpec.AT_MOST));
+            setMeasuredDimension(width,top.getMeasuredHeight()+body.getMeasuredHeight()+actions.getMeasuredHeight()+getPaddingBottom());
+        }
+        @Override protected void onLayout(boolean changed,int l,int t,int r,int b){
+            int y=0;for(int i=0;i<3;i++){View child=getChildAt(i);child.layout(0,y,getWidth(),y+child.getMeasuredHeight());y+=child.getMeasuredHeight();}
+        }
     }
     private ScrollView textScroll(String value) { ScrollView scroll = new ScrollView(this); TextView t = text(value, 13, NAVY, false);
         t.setTextIsSelectable(true); t.setPadding(dp(22), dp(12), dp(22), dp(20)); scroll.addView(t); return scroll; }
@@ -897,8 +1190,15 @@ public final class MainActivity extends Activity {
         if(isFinishing()||isDestroyed())return null;
         AlertDialog dialog=builder.create();
         if(dialog.getWindow()!=null)dialog.getWindow().setWindowAnimations(android.animation.ValueAnimator.areAnimatorsEnabled()?R.style.MufDialogAnimation:0);
+        if(dialog.getWindow()!=null){
+            // Blur behind only where Android enables cross-window blur (API 31+); otherwise a plain dim.
+            if(blurAvailable()){dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                android.view.WindowManager.LayoutParams attributes=dialog.getWindow().getAttributes();attributes.setBlurBehindRadius(dp(24));dialog.getWindow().setAttributes(attributes);
+                dialog.getWindow().setDimAmount(.2f);}
+            else dialog.getWindow().setDimAmount(.32f);
+        }
         dialog.show();
-        if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawable(bg(Color.WHITE,24,false));
+        if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawable(bg(Color.WHITE,MufTheme.R_SHEET,false));
             int windowWidth=getWindow().getDecorView().getWidth();
             if(windowWidth<=0)windowWidth=getResources().getDisplayMetrics().widthPixels;
             dialog.getWindow().setLayout(Math.min(Math.max(dp(48),windowWidth-dp(48)),dp(440)),-2);}
@@ -911,8 +1211,8 @@ public final class MainActivity extends Activity {
             b.setMinWidth(dp(48)); b.setMinimumWidth(dp(48)); b.setPadding(dp(16),dp(10),dp(16),dp(10));
             MufTheme.flatten(b);
             boolean danger="Hapus".contentEquals(b.getText()),primary=which==AlertDialog.BUTTON_POSITIVE;
-            b.setTextColor(primary?Color.WHITE:GREEN);
-            b.setBackground(MufTheme.touch(this,danger?RED:primary?GREEN:Color.WHITE,12,false)); actions.addView(b);
+            b.setTextColor(primary?Color.WHITE:GREEN); b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
+            b.setBackground(MufTheme.touch(this,danger?RED:primary?GREEN:Color.TRANSPARENT,MufTheme.R_CONTROL,false)); MufTheme.pressable(b); actions.addView(b);
         }
         if(buttonPanel!=null){buttonPanel.removeAllViews();buttonPanel.setPadding(dp(20),dp(8),dp(20),dp(16));
             buttonPanel.addView(actions,new android.view.ViewGroup.LayoutParams(-1,-2));}

@@ -175,6 +175,7 @@ Pembaruan hanya berhasil bila APK ditandatangani dengan kunci yang sama. Unduh A
 | Perangkat | Android | Tokopedia | MUF Checker | Catatan |
 | --- | --- | --- | --- | --- |
 | Poco X7 (Xiaomi 24095PCADG) | 16 / HyperOS | 45.4.5 | 0.9.0 | 29 kontrak, 3 menit 21 detik |
+| Emulator Android (API 36) | 16 | – | 0.9.1 | Tata letak Pengaturan dan tooltip tombol Diagnosis |
 
 Pengujian emulator dan UI tidak menggantikan validasi langsung di Tokopedia. Setelah memasang versi baru, cocokkan dulu beberapa kontrak yang diketahui sebelum memeriksa antrean besar.
 
