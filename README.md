@@ -122,7 +122,7 @@ Sebelum memeriksa banyak kontrak, coba dulu **lima kontrak yang statusnya sudah 
 | Bagian | Isi |
 | --- | --- |
 | Akses | Status Aksesibilitas dan **Jaga layar menyala** (layar hanya dijaga selama pemeriksaan). |
-| Pemeriksaan | **Mode pemeriksaan**: *Halaman Tokopedia siap* (bawaan) atau melalui tautan MUF. |
+| Pemeriksaan | Ketuk **Mode pemeriksaan** untuk melihat dan memilih mode: *Halaman Tokopedia siap* (bawaan) atau melalui tautan MUF. |
 | Diagnosis | Ketuk baris **Sesi** untuk memilih sesi. Tiga tombol ikon di bawahnya: 👁 **Lihat**, ⧉ **Salin**, dan ⇧ **Ekspor** laporan diagnosis `.txt` (tekan lama untuk melihat namanya). Ekspor sesi aktif memerlukan Jeda terlebih dahulu. |
 | Data aplikasi | **Hapus seluruh sesi** dari perangkat. |
 </details>
