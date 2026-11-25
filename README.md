@@ -29,17 +29,17 @@
     <td align="center"><img src="docs/screenshots/periksa.png" width="200" alt="Halaman Periksa: periode, daftar nomor kontrak, dan progres aktivitas" /></td>
     <td align="center"><img src="docs/screenshots/hasil.png" width="200" alt="Halaman Hasil: ringkasan Sudah, Belum, Error, pencarian, filter, dan tabel status" /></td>
     <td align="center"><img src="docs/screenshots/rincian-kontrak.png" width="200" alt="Rincian kontrak: status, jatuh tempo, periode, angsuran, dan cicilan" /></td>
-    <td align="center"><img src="docs/screenshots/pengaturan.png" width="200" alt="Halaman Pengaturan: akses, mode pemeriksaan, diagnosis, dan data aplikasi" /></td>
+    <td align="center"><img src="docs/screenshots/pengaturan.png" width="200" alt="Halaman Pengaturan: kartu Diagnosis dengan baris Sesi dan tombol ikon Lihat, Salin, Ekspor" /></td>
   </tr>
   <tr>
     <td align="center"><b>Periksa</b><br /><sub>Periode dan daftar kontrak</sub></td>
     <td align="center"><b>Hasil</b><br /><sub>Ringkasan, cari, dan filter</sub></td>
     <td align="center"><b>Rincian kontrak</b><br /><sub>Detail per kontrak</sub></td>
-    <td align="center"><b>Pengaturan</b><br /><sub>Akses, mode, diagnosis</sub></td>
+    <td align="center"><b>Pengaturan</b><br /><sub>Diagnosis ringkas</sub></td>
   </tr>
 </table>
 
-<p align="center"><sub>Diuji pada Poco X7 (Xiaomi 24095PCADG) · Android 16 / HyperOS · Tokopedia 45.4.5. Nomor kontrak, nama, dan nominal pada gambar adalah data contoh yang telah disamarkan.</sub></p>
+<p align="center"><sub>Diuji pada Poco X7 (Xiaomi 24095PCADG) · Android 16 / HyperOS · Tokopedia 45.4.5. Nomor kontrak, nama, dan nominal pada gambar adalah data contoh yang telah disamarkan. Gambar Pengaturan menampilkan kartu Diagnosis versi 0.9.1.</sub></p>
 
 > [!IMPORTANT]
 > Hasil MUF Checker adalah **indikasi operasional**, bukan bukti transaksi atau konfirmasi pembayaran resmi dari MUF maupun Tokopedia. Aplikasi ini adalah alat bantu internal dan **bukan** produk resmi keduanya. Gunakan hanya untuk nomor kontrak yang memang menjadi kewenangan Anda.
@@ -123,7 +123,7 @@ Sebelum memeriksa banyak kontrak, coba dulu **lima kontrak yang statusnya sudah 
 | --- | --- |
 | Akses | Status Aksesibilitas dan **Jaga layar menyala** (layar hanya dijaga selama pemeriksaan). |
 | Pemeriksaan | **Mode pemeriksaan**: *Halaman Tokopedia siap* (bawaan) atau melalui tautan MUF. |
-| Diagnosis | Pilih **Sesi**, lalu **Lihat**, **Salin**, atau **Ekspor** laporan diagnosis `.txt`. Ekspor sesi aktif memerlukan Jeda terlebih dahulu. |
+| Diagnosis | Ketuk baris **Sesi** untuk memilih sesi. Tiga tombol ikon di bawahnya: 👁 **Lihat**, ⧉ **Salin**, dan ⇧ **Ekspor** laporan diagnosis `.txt` (tekan lama untuk melihat namanya). Ekspor sesi aktif memerlukan Jeda terlebih dahulu. |
 | Data aplikasi | **Hapus seluruh sesi** dari perangkat. |
 </details>
 
