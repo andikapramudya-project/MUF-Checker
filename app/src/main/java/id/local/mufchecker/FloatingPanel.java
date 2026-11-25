@@ -58,6 +58,8 @@ final class FloatingPanel extends LinearLayout {
         button.setPadding(dp(10),dp(8),dp(10),dp(8));MufTheme.flatten(button);
         int color=main?MufTheme.GREEN:danger?Color.argb(110,166,45,54):Color.argb(28,255,255,255);
         GradientDrawable surface=MufTheme.shape(getContext(),color,18,false);surface.setStroke(dp(1),Color.argb(main?65:90,255,255,255));
-        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF),surface,null));return button;
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF),surface,null));
+        MufTheme.pressable(button); // scale feedback only; the panel window itself never moves
+        return button;
     }
 }

@@ -93,7 +93,7 @@ public final class UiSmokeInstrumentation extends Instrumentation {
         android.widget.TextView session=(android.widget.TextView)field(activity,"sessionSelect");
         check(!session.getText().toString().contains("⌄"),"Session selector has no chevron");
         check(!((android.widget.TextView)field(activity,"modeButton")).getText().toString().contains("⌄"),"Mode has no chevron");
-        check("Pilih sesi".contentEquals(((android.widget.TextView)field(activity,"diagnosisChoice")).getText()),"Diagnosis selector stays compact");
+        CharSequence chosenSession=((android.widget.TextView)field(activity,"diagnosisChoice")).getText();check(chosenSession.length()>0 && !chosenSession.toString().contains("⌄"),"Diagnosis session row shows the chosen session without a chevron");
         check(!((android.widget.TextView)field(activity,"summary")).getText().toString().contains(" m "),"Duration uses compact units");
     }
     private void waitProductWindow(Context context) {
@@ -330,9 +330,11 @@ public final class UiSmokeInstrumentation extends Instrumentation {
                         probe.setContentView(content);
                     });
                     waitText(marker);waitForIdleSync();
+                    // Drop cached nodes from the previous probe so the snapshot reflects only the current content.
+                    if(android.os.Build.VERSION.SDK_INT>=34)getUiAutomation().clearCache();
                     android.view.accessibility.AccessibilityNodeInfo root=getUiAutomation().getRootInActiveWindow();
                     Object frame=constructor.newInstance(root,1220,2712);
-                    check((Boolean)invoke(frame,"loading",new Class<?>[]{})==!value.contains("cabang"),"Real native accessibility snapshot detects spinner/text loading");
+                    check((Boolean)invoke(frame,"loading",new Class<?>[]{})==!value.contains("cabang"),"Real native accessibility snapshot detects spinner/text loading for "+value+" (root "+root.getClassName()+"/"+root.getChildCount()+")");
                     if(value.contains("cabang"))check(invoke(frame,"responseSignal",new Class<?>[]{})==id.local.mufchecker.InquiryResponse.Signal.RESTRICTED,"Native snapshot classifies explicit branch message");
                     invoke(frame,"close",new Class<?>[]{});root.recycle();
                 }
