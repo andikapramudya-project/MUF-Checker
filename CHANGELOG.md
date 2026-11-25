@@ -1,5 +1,25 @@
 # Catatan rilis
 
+## 0.9.1 — 25 November 2026
+
+- **Pengaturan lebih ringkas.** Baris **Mode pemeriksaan** kini hanya menampilkan judul dalam satu baris; mode yang dipilih terlihat di dialog saat baris diketuk dan tetap dibacakan pembaca layar.
+- **Kartu Diagnosis**: baris **Sesi** tetap satu baris dan dapat diketuk untuk memilih sesi. Lihat, Salin dan Ekspor menjadi satu baris berisi tiga tombol ikon dengan lebar sama (area sentuh 48 dp, pil hijau 14%). Setiap tombol memiliki label aksesibilitas dan tooltip saat ditekan lama.
+- Keterangan Diagnosis dipersingkat menjadi satu baris: “Diagnosis tidak memuat no. PK, nama, atau nominal.” Istilah *Nomor kontrak* di halaman lain tidak berubah.
+- Hanya tata letak. Logika pemeriksaan, guard inquiry, alur antrean, performa, schema, serializer dan kunci signing tidak berubah. VersionCode 23/versionName 0.9.1. Basis 0.9.0 sudah diuji pada Poco X7 (Android 16/HyperOS).
+
+## 0.9.0 — 23 November 2026
+
+- **Tampilan baru dari dasar 0.8.5** bergaya permukaan berkelompok (prinsip dari BitChord, GPL-3.0; angka ditetapkan ulang, tanpa menyalin kode, aset atau font). Hanya mode terang: latar #FFFFFF, kartu #F7F7F9 radius 20 dp tanpa bayangan, isian #F2F2F7, garis rambut #E5E5EA, teks #111111/#6E6E73, aksen hijau #007350 (isian 14%), merah hanya untuk Error/STOP/hapus. Status bar dan bar navigasi sistem putih.
+- **Gerak pegas** (kekakuan 320, rasio redaman 0,72, pantulan sekitar 3,8%, 450 ms) untuk indikator bar, segmented control, ikon tab dan bottom sheet; pergantian warna 200 ms; fade keluar 90 ms. Umpan balik tekan skala 0,97. Semuanya dilewati saat skala animasi Android 0 dan tidak menjadwalkan aksi antrean.
+- **Bar navigasi mengambang**: pil putih 94% dengan garis rambut dan bayangan lembut, jarak tepi 19 dp, ikon 26 dp, label 11 sp, tinggi sentuh 56 dp. Indikator meregang hingga 1,16 × 0,92 sesuai jarak tempuh, getar CLOCK_TICK saat pilihan berubah, geser horizontal memilih tab saat dilepas.
+- **Periksa**: bidang periode isian lembut dengan tombol Ubah berbentuk pil kecil (sentuh 48 dp), kolom kontrak tanpa garis dengan cincin fokus hijau 1,5 dp (150 ms), tombol utama 52 dp radius 14, tombol sekunder isian lembut teks hijau.
+- **Hasil**: angka ringkasan 28 sp tabular, segmented control Semua/Belum/Sudah/Error, kolom pencarian berikon dengan tombol hapus, kepala tabel caption 11 sp pada #F7F7F9, baris putih dengan pemisah tipis. Urutan kolom dan aturan satu baris 0.8.5 tetap.
+- **Pengaturan**: baris berkelompok 56 dp dengan ikon garis orisinal pada ubin hijau 14%, nilai di kanan (Aksesibilitas, Mode pemeriksaan, Sesi diagnosis), keterangan di bawah grup; Hapus seluruh sesi tetap dengan konfirmasi native.
+- **Rincian kontrak** menjadi bottom sheet (radius atas 24 dp, pegangan, isi bergulir maksimal 85% tinggi window, tarik >25% atau lempar cepat untuk menutup). Dialog lain memakai radius 24 dp. Android 12+ dengan cross-window blur memakai blur latar dan redup 0,2; lainnya redup 0,32.
+- Panel mengambang Tokopedia tetap glass; hanya ditambah umpan balik tekan pada tombol, posisi window tidak dianimasikan.
+- Uji instrumentasi `response` kini membersihkan cache aksesibilitas sebelum membaca probe native (API 34+); sebelumnya node probe sebelumnya kadang terbaca dan membuat uji gagal sesekali.
+- Menggantikan tambahan tata letak 0.8.7 yang belum dirilis (kolom Status kedua, kapsul status, hitungan chip); cadangannya disimpan privat di .build. VersionCode 22/versionName 0.9.0.
+
 ## 0.8.6 — 23 November 2026
 
 - **Gerak lebih tenang.** Satu set token gerak (90/160/220/300/420 ms) dengan kurva ease-out untuk elemen masuk dan ease-in untuk elemen keluar. OvershootInterpolator dan skala 1.035 pada navigasi dihapus; indikator kapsul bergeser 300 ms tanpa pantulan, dan warna label/ikon tab berpindah lembut 220 ms.

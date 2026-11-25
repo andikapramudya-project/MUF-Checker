@@ -87,6 +87,25 @@ public final class TimingPresentationTest {
         String[][] tableLabels={{"SUDAH BAYAR","Bayar"},{"BELUM BAYAR","Belum"},{"ERROR","Error"},{"DIPROSES","Proses"},{"MENUNGGU","Tunggu"}};
         for(String[] pair:tableLabels)ok(pair[1].equals(UiPresentation.tableStatusLabel(pair[0])),"Table keeps distinct meaning for "+pair[0]);
         ok("Error".equals(UiPresentation.tableStatusLabel(null)) && "Error".equals(UiPresentation.tableStatusLabel("UNKNOWN")),"Unknown table status never becomes paid or unpaid");
+        // 0.9.0 motion/gesture math: spring, indicator stretch, segment hit-testing and sheet dismissal.
+        ok(UiPresentation.spring(0f)==0f && UiPresentation.spring(1f)==1f && UiPresentation.spring(-1f)==0f && UiPresentation.spring(2f)==1f,"Spring starts at 0 and rests exactly on 1");
+        float peak=0f;int peakStep=0;for(int i=0;i<=1000;i++){float v=UiPresentation.spring(i/1000f);if(v>peak){peak=v;peakStep=i;}}
+        ok(peak>1.03f && peak<1.045f,"Spring overshoot is slight (about 3.8%), measured "+peak);
+        ok(peakStep>300 && peakStep<700,"Overshoot peaks mid-animation, not at the start or end");
+        ok(Math.abs(UiPresentation.spring(.95f)-1f)<.01f,"Spring has settled within 1% before the animation ends");
+        boolean monotonicStart=true;for(int i=1;i<=200;i++)if(UiPresentation.spring(i/1000f)<UiPresentation.spring((i-1)/1000f))monotonicStart=false;
+        ok(monotonicStart && UiPresentation.spring(.05f)>0f,"Spring moves forward immediately without a backward kick");
+        ok(UiPresentation.travelLag(0f,1f)==0f && UiPresentation.travelLag(1f,1f)==0f && UiPresentation.travelLag(.5f,1f)==1f,"Indicator lag is zero at rest and peaks mid-travel");
+        ok(UiPresentation.travelLag(.5f,.5f)==.5f && UiPresentation.travelLag(.5f,2f)==1f && UiPresentation.travelLag(.5f,0f)==0f,"Lag scales with distance, capped at one tab");
+        ok(UiPresentation.stretchX(0f)==1f && UiPresentation.stretchY(0f)==1f,"No stretch at rest");
+        ok(Math.abs(UiPresentation.stretchX(1f)-1.16f)<1e-6 && Math.abs(UiPresentation.stretchY(1f)-.92f)<1e-6,"Maximum stretch is 1.16 wide by 0.92 tall");
+        ok(UiPresentation.stretchX(5f)==UiPresentation.stretchX(1f) && UiPresentation.stretchY(-1f)==1f,"Stretch input is clamped");
+        ok(UiPresentation.segmentAt(0f,300f,3)==0 && UiPresentation.segmentAt(150f,300f,3)==1 && UiPresentation.segmentAt(299f,300f,3)==2,"Tab under the finger");
+        ok(UiPresentation.segmentAt(-40f,300f,3)==0 && UiPresentation.segmentAt(900f,300f,3)==2 && UiPresentation.segmentAt(10f,0f,3)==0 && UiPresentation.segmentAt(10f,300f,0)==0,"Drag outside the bar clamps; zero sizes are safe");
+        ok(UiPresentation.segmentAt(99.9f,400f,4)==0 && UiPresentation.segmentAt(100f,400f,4)==1,"Segment boundaries are exact");
+        ok(!UiPresentation.dismissSheet(100f,400f,0f,3f) && UiPresentation.dismissSheet(101f,400f,0f,3f),"Sheet closes only past 25% of its height");
+        ok(UiPresentation.dismissSheet(10f,400f,3001f,3f) && !UiPresentation.dismissSheet(10f,400f,2999f,3f),"Fast downward fling (>1000 dp/s) closes");
+        ok(!UiPresentation.dismissSheet(0f,400f,9000f,3f) && !UiPresentation.dismissSheet(-50f,400f,9000f,3f),"Upward or zero drag never closes");
         System.out.println("PASS: "+checks+" timing/presentation checks");
     }
 }
